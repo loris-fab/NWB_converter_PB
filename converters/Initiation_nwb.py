@@ -6,6 +6,9 @@ import yaml
 from dateutil.tz import tzlocal
 from pynwb import NWBFile
 from pynwb.file import Subject
+from scipy.io import loadmat
+import re
+import h5py
 
 #############################################################################
 # Function that creates the nwb file object using all metadata
@@ -38,10 +41,12 @@ def create_nwb_file_an(config_file):
         kwargs_subject[key] = subject_data_yaml.get(key)
         if kwargs_subject[key] is not None:
             kwargs_subject[key] = str(kwargs_subject[key])
-    if 'date_of_birth' in kwargs_subject:
+    if 'date_of_birth' in kwargs_subject and kwargs_subject['date_of_birth'] != "na":
         date_of_birth = datetime.strptime(kwargs_subject['date_of_birth'], '%m/%d/%Y')
         date_of_birth = date_of_birth.replace(tzinfo=tzlocal())
         kwargs_subject['date_of_birth'] = date_of_birth
+    else:
+        kwargs_subject.pop('date_of_birth', None)
     subject = Subject(**kwargs_subject)
 
     # Session info
@@ -89,76 +94,36 @@ def create_nwb_file_an(config_file):
 
 
 #############################################################################
-# Function that creates the config file (rewarded) for the NWB conversion
+# Function that creates the config file for the NWB conversion
 #############################################################################
 
 
-def files_to_config_Rewarded(mat_file, csv_file,output_folder="data"):
-    """
-    Converts a .mat file and csv_file into a .yaml configuration file for the NWB pipeline.
-    :param mat_file: dictionary containing the data from the .mat file
-    :param output_folder: Path to the folder to save the config file
-    :return: Configuration dictionary + path to the yaml file
-    """
-    related_publications = 'Oryshchuk A, Sourmpis C, Weverbergh J, Asri R, Esmaeili V, Modirshanechi A, Gerstner W, Petersen CCH, Crochet S. Distributed and specific encoding of sensory, motor, and decision information in the mouse neocortex during goal-directed behavior. Cell Rep. 2024 Jan 23;43(1):113618. doi: 10.1016/j.celrep.2023.113618. Epub 2023 Dec 26. PMID: 38150365.'
+def files_to_config(csv_data_row,output_folder="data"):
+    related_publications = 'Le Merre P, Esmaeili V, Charrière E, Galan K, Salin PA, Petersen CCH, Crochet S. Reward-Based Learning Drives Rapid Sensory Signals in Medial Prefrontal Cortex and Dorsal Hippocampus Necessary for Goal-Directed Behavior. Neuron. 2018 Jan 3;97(1):83-91.e5. doi: 10.1016/j.neuron.2017.11.031. Epub 2017 Dec 14. PMID: 29249287; PMCID: PMC5766832.'
     
-    data = mat_file
-    mouse = ''.join(chr(c) for c in data['mouse'].flatten())
-    date = ''.join(chr(c) for c in data['date'].flatten())
-    session_name = f"{mouse}_{date}"  # e.g., "AO039_20190626"
 
-    # Load the CSV file 
-    csv_data = pd.read_csv(csv_file, sep=";")
-    csv_data.columns = csv_data.columns.str.strip() 
+    mouse = csv_data_row['Mouse Name']
+    date = csv_data_row['Session Date (yyymmdd)']
+    session_name = csv_data_row['Session']
 
-    try:
-        subject_info = csv_data[csv_data['Session'].astype(str).str.strip() == session_name].iloc[0]
-    except IndexError:
-        raise ValueError(f"Session {session_name} not found in the CSV file.")
+    subject_info = csv_data_row
 
     ###  Session metadata extraction  ###
 
     ### Experiment_description
-    date = ''.join(chr(c) for c in data['date'].flatten())
-    date_experience = pd.to_datetime(date, format='%Y%m%d')
-
+    #date_experience = pd.to_datetime(date, format='%Y%m%d')
 
     ref_weight = subject_info.get("Weight of Reference", "")
     if pd.isna(ref_weight) or str(ref_weight).strip().lower() in ["", "nan"]:
-        ref_weight = "Unknown"
+        ref_weight = 'na'
     else:
         try:
             ref_weight = float(ref_weight)
         except Exception:
-            ref_weight = "Unknown"  
-
-    video_sr = int(data["Video_sr"])
-    if pd.isna(video_sr) or str(video_sr).strip().lower() in ["", "nan"]:
-        video_sr = 200
-    else:
-        video_sr = int(data["Video_sr"])
-
-    # Check if all traces have the same number of frames and compute camera start delay and exposure time
-    Frames_per_Video = data["JawTrace"].shape[1]
-    if data["JawTrace"].shape[1] == Frames_per_Video and data["NoseSideTrace"].shape[1] == Frames_per_Video and data["NoseTopTrace"].shape[1] == Frames_per_Video and data["WhiskerAngle"].shape[1] == Frames_per_Video and data["TongueTrace"].shape[1] == Frames_per_Video :
-        pass
-    else:
-        error_message = "Inconsistent number of frames across traces."
-        raise ValueError(error_message)
-
-    if  np.array_equal(data["VideoOnsets"], data["TrialOnsets_All"]):
-        camera_start_delay = 0.0
-    elif np.all(data["VideoOnsets"] < data["TrialOnsets_All"]):
-        camera_start_delay = float(np.mean(data["TrialOnsets_All"] - data["VideoOnsets"]))
-    else:
-        error_message = "Problem with VideoOnsets and TrialOnsets_All timing."
-        camera_start_delay = "Unknown"
-        raise ValueError(error_message)
-
-    video_duration = Frames_per_Video / video_sr
+            ref_weight = 'na'
 
     experiment_description = {
-    'reference_weight': ref_weight,
+    #'reference_weight': ref_weight,
     #'wh_reward': ?,
     #'aud_reward': ?,
     #'reward_proba': ?,
@@ -167,218 +132,22 @@ def files_to_config_Rewarded(mat_file, csv_file,output_folder="data"):
     #'wh_stim_weight': ?,
     #'aud_stim_weight': ?,
     #'camera_flag': ?,
-    'behavior type': 'Psychometric Whisker',
-    'camera_freq': video_sr,
+    #'camera_freq': ?,
     #'camera_exposure_time': camera_exposure_time,
-    'each_video_duration': video_duration,
-    'camera_start_delay': camera_start_delay,
-    #'artifact_window': ?,
-    'licence': str(subject_info.get("licence", "")).strip()+ " (All procedures were approved by the Swiss Federal Veterinary Office)",
-    'ear tag': str(subject_info.get("Ear tag", "")).strip(),
-    'Software and algorithms' : "MATLAB R2021a, Kilosort2, Allen CCF tools , DeepLabCut 2.2b7 ",
-    'Ambient noise' : "80 dB",
-}
-    ### Experimenter
-    experimenter = "Anastasiia Oryshchuk"
-   
-    ### Session_id, identifier, institution, keywords
-    session_id = subject_info["Session"].strip() 
-    identifier = session_id + "_" + str(subject_info["Start Time (hhmmss)"])
-    keywords = ["neurophysiology", "behaviour", "mouse", "electrophysiology"] #DEMANDER SI BESOIN DE CA
-
-    ### Session start time
-    session_start_time = str(subject_info["Session Date (yyymmdd)"])+" " + str(subject_info["Start Time (hhmmss)"])
-
-    ###  Subject metadata extraction  ###
-
-    ### Birth date and age calculation
-    birth_date = pd.to_datetime(subject_info["Birth date"], dayfirst=True)
-    age = subject_info["Mouse Age (d)"]
-    age = f"P{age}D"
-
-
-    ### Genotype 
-    genotype = subject_info.get("mutations", "")
-    if pd.isna(genotype) or str(genotype).strip().lower() in ["", "nan"]:
-        genotype = "WT"
-    genotype = str(genotype).strip()
-
-
-    ### weight
-    weight = subject_info.get("Weight Session", "")
-    if pd.isna(weight) or str(weight).strip().lower() in ["", "nan"]:
-        weight = "Unknown"
-    else:
-        try:
-            weight = float(weight)
-        except Exception:
-            weight = "Unknown" 
-
-    ### Behavioral metadata extraction 
-    camera_flag = 1
-
-    # Construct the output YAML path
-    config = {
-        'session_metadata': {
-            'experiment_description' : experiment_description,
-            'experimenter': experimenter,
-            'identifier': identifier,
-            'institution': "Ecole Polytechnique Federale de Lausanne",
-            'keywords': keywords,
-            'lab' : "Laboratory of Sensory Processing",
-            'notes': "Combining high-density extracellular electrophysiological recordings (from wS1, tjM1, mPFC) with high-speed videography of orofacial movements of mice performing a psychometric whisker sensory detection task reported by licking, Oryshchuk et al.",
-            'pharmacology': 'na',
-            'protocol': 'na',
-            'related_publications': related_publications,
-            'session_description': "ephys" +" " + str(subject_info.get("Session Type", "Unknown").strip()) + ":" " Whisker-rewarded (WR+) mice were trained to lick within 1 s following the whisker stimulus (go trials) but not in the absence of the stimulus (no-go trials). The neuronal representation of sensory, motor, and decision information was studied in a sensory, a motor, and a higher-order cortical area in these mice trained to lick for a water reward in response to a brief whisker stimulus.",
-            'session_id': session_id,
-            'session_start_time': session_start_time,
-            'slices': "Allen CCF tools was used to register brain slices and probe locations to the Allen mouse brain atlas.", 
-            'source_script': 'na',
-            'source_script_file_name': 'na',
-            'stimulus_notes': 'Whisker stimulation (a brief magnetic pulse of 1-ms acting upon a small metal particle) was applied unilaterally to the C2 region to evoke sensory responses. Stimulus trials included four whisker stimulus amplitudes of 1 , 1.8 , 2.5 , and 3.3 deflection of the right C2 whisker, also delivered with equal probabilities.',
-            'surgery': 'na',
-            'virus': 'na',
-
-        },
-        'subject_metadata': {
-            'age': age,
-            'age__reference': 'birth',
-            'date_of_birth': birth_date.strftime('%m/%d/%Y') if birth_date else None,
-            'description': mouse,
-            'genotype': genotype,
-            'sex': subject_info.get("Sex_bin", "").upper().strip(),
-            'species': "Mus musculus",
-            'strain': subject_info.get("strain", "").strip(),
-            'subject_id': mouse,
-            'weight': weight,
-
-        },
-    }
-
-    # save config
-    output_path = os.path.join(output_folder, f"{session_name}_config.yaml")
-    with open(output_path, 'w') as f:
-        yaml.dump(config, f, default_flow_style=False)
-    return output_path, config
-
-def Rewarded_or_not(mat_file, csv_file):
-    """
-    Check if the session is rewarded or not based on the CSV file.
-    :param mat_file: dictionary containing the data from the .mat file
-    :param csv_file: Path to the CSV file
-    :return: True if rewarded, False otherwise
-    """
-    # Load the .mat file
-    data = mat_file
-    mouse = ''.join(chr(c) for c in data['mouse'].flatten())
-    date = ''.join(chr(c) for c in data['date'].flatten())
-    session_name = f"{mouse}_{date}"  # e.g., "AO039_20190626"
-
-    # Load the CSV file 
-    csv_data = pd.read_csv(csv_file, sep=";")
-    csv_data.columns = csv_data.columns.str.strip() 
-
-    try:
-        subject_info = csv_data[csv_data['Session'].astype(str).str.strip() == session_name].iloc[0]
-    except IndexError:
-        raise ValueError(f"Session {session_name} not found in the CSV file.")
-
-    if "Non" in subject_info.get("Session Type", "Unknown").strip():
-        Rewarded = False
-    else:
-        Rewarded = True
-
-    return Rewarded
-
-#############################################################################
-# Function that creates the config file (non rewarded) for the NWB conversion
-#############################################################################
-
-def files_to_config_NonRewarded(mat_file, csv_file,output_folder="data"):
-    """
-    Converts a .mat file and csv_file into a .yaml configuration file for the NWB pipeline.
-
-    :param mat_file: dictionary containing the data from the .mat file
-    :param output_folder: Path to the folder to save the config file
-    :return: Configuration dictionary + path to the yaml file
-    """
-    related_publications = 'Oryshchuk A, Sourmpis C, Weverbergh J, Asri R, Esmaeili V, Modirshanechi A, Gerstner W, Petersen CCH, Crochet S. Distributed and specific encoding of sensory, motor, and decision information in the mouse neocortex during goal-directed behavior. Cell Rep. 2024 Jan 23;43(1):113618. doi: 10.1016/j.celrep.2023.113618. Epub 2023 Dec 26. PMID: 38150365.'
-    
-    data = mat_file
-    mouse = ''.join(chr(c) for c in data['mouse'].flatten())
-    date = ''.join(chr(c) for c in data['date'].flatten())
-    session_name = f"{mouse}_{date}"  # e.g., "AO039_20190626"
-
-    # Load the CSV file 
-    csv_data = pd.read_csv(csv_file, sep=";")
-    csv_data.columns = csv_data.columns.str.strip() 
-
-    try:
-        subject_info = csv_data[csv_data['Session'].astype(str).str.strip() == session_name].iloc[0]
-    except IndexError:
-        raise ValueError(f"Session {session_name} not found in the CSV file.")
-
-    ###  Session metadata extraction  ###
-
-    ### Experiment_description
-    date = ''.join(chr(c) for c in data['date'].flatten())
-    date_experience = pd.to_datetime(date, format='%Y%m%d')
-
-
-    ref_weight = subject_info.get("Weight of Reference", "")
-    if pd.isna(ref_weight) or str(ref_weight).strip().lower() in ["", "nan"]:
-        ref_weight = "Unknown"
-    else:
-        try:
-            ref_weight = float(ref_weight)
-        except Exception:
-            ref_weight = "Unknown"  
-
-    video_sr = int(data["Video_sr"])
-    if pd.isna(video_sr) or str(video_sr).strip().lower() in ["", "nan"]:
-        video_sr = 200
-    else:
-        video_sr = int(data["Video_sr"])
-
-    # Check if all traces have the same number of frames and compute camera start delay and exposure time
-    Frames_tot = data["JawTrace"].shape[1]
-    if data["JawTrace"].shape[1] == Frames_tot and data["NoseSideTrace"].shape[1] == Frames_tot and data["NoseTopTrace"].shape[1] == Frames_tot and data["WhiskerAngle"].shape[1] == Frames_tot and data["TongueTrace"].shape[1] == Frames_tot:
-        pass
-    else:
-        error_message = "Inconsistent number of frames across traces."
-        raise ValueError(error_message)
-
-
-    video_duration_total = Frames_tot / video_sr
-
-    experiment_description = {
-    'reference_weight': ref_weight,
-    #'wh_reward': ?,
-    #'aud_reward': ?,
-    #'reward_proba': ?,
-    #'lick_threshold': ?,
-    #'no_stim_weight': ?,
-    #'wh_stim_weight': ?,
-    #'aud_stim_weight': ?,
-    #'camera_flag': ?,
-    'behavior type': 'Psychometric Whisker',
-    'camera_freq': video_sr,
-    #'camera_exposure_time': camera_exposure_time,
-    'total_video_duration': video_duration_total,
+    #'each_video_duration': ?,
+    #'camera_start_delay': ?,
     #'artifact_window': ?,
     'licence': str(subject_info.get("licence", "")).strip() + " (All procedures were approved by the Swiss Federal Veterinary Office)",
-    'ear tag': str(subject_info.get("Ear tag", "")).strip(),
-    'Software and algorithms' : "MATLAB R2021a, Kilosort2, Allen CCF tools , DeepLabCut 2.2b7 ",
-    'Ambient noise' : "80 dB",
-}
+    #'ear tag': str(subject_info.get("Ear tag", "")).strip(),
+    "Software and Algorithms": "Labview, Klusta, MATLAB R2015b",
+    }
     ### Experimenter
-    experimenter = "Anastasiia Oryshchuk"
+    experimenter = "Pierre Le Merre"
    
     ### Session_id, identifier, institution, keywords
     session_id = subject_info["Session"].strip() 
     identifier = session_id + "_" + str(subject_info["Start Time (hhmmss)"])
-    keywords = ["neurophysiology", "behaviour", "mouse", "electrophysiology"]
+    keywords = ["neurophysiology", "behaviour", "mouse", "electrophysiology"] 
 
     ### Session start time
     session_start_time = str(subject_info["Session Date (yyymmdd)"])+" " + str(subject_info["Start Time (hhmmss)"])
@@ -386,9 +155,14 @@ def files_to_config_NonRewarded(mat_file, csv_file,output_folder="data"):
     ###  Subject metadata extraction  ###
 
     ### Birth date and age calculation
-    birth_date = pd.to_datetime(subject_info["Birth date"], dayfirst=True)
-    age = subject_info["Mouse Age (d)"]
-    age = f"P{age}D"
+    if subject_info["Birth date"] != "Unknown":
+        birth_date = pd.to_datetime(subject_info["Birth date"], dayfirst=True).strftime('%m/%d/%Y')
+    else:
+        birth_date = 'na'
+    age = subject_info["Mouse Age (d)"] 
+    if age == "Unknown":
+        age = 'na'
+    #age = f"P{age}D"
 
 
     ### Genotype 
@@ -401,16 +175,29 @@ def files_to_config_NonRewarded(mat_file, csv_file,output_folder="data"):
     ### weight
     weight = subject_info.get("Weight Session", "")
     if pd.isna(weight) or str(weight).strip().lower() in ["", "nan"]:
-        weight = "Unknown"
+        weight = 'na'
     else:
         try:
             weight = float(weight)
         except Exception:
-            weight = "Unknown" 
+            weight = 'na'
 
     ### Behavioral metadata extraction 
     camera_flag = 1
 
+    ### behavioral type
+    behavior_type = str(subject_info.get("Behavior Type", "Unknown").strip())
+    if behavior_type == "Detection Task":
+        session_description = "ephys " + behavior_type + ": For the detection task, trials with whisker stimulation (Stimulus trials) or those without whisker stimulation (Catch trials) were started without any preceding cues, at random inter-trial intervals ranging from 6 to 12 s. Catch trials were randomly interleaved with Stimulus trials, with 50% probability of all trials. If the mouse licked in the 3-4 s no-lick window preceding the time when the trial was supposed to occur, then the trial was aborted. Catch trials were present from the first day of training. Mice were rewarded only if they licked the water spout within a 1 s response window following the whisker stimulation (Hit)."
+        stimulus_notes = "Whisker stimulation was applied to the C2 region to evoke sensory responses."
+
+    elif behavior_type == "Neutral Exposition":
+        session_description = "ephys " + behavior_type + ": For the neutral exposure task, mice were trained to collect the reward by licking the water spout with an intertrial interval ranging from 6 to 12 s and after a no-lick period of 3-4 s, similar to the detection task. At random times the same 1 ms whisker stimulus was delivered to the C2 whisker with an inter stimulus interval ranging from 6 to 12 s and a probability of 50%. The whisker stimulus was not correlated to the delivery of the reward, therefore, no association between the stimulus and the delivery of the reward could be made. In this behavioral paradigm, mice were exposed to the whisker stimulus during 7-10 days."
+        stimulus_notes = "Whisker stimulation was applied to the C2 region to evoke sensory responses."
+
+    else:
+        raise ValueError(f"Unknown behavior type: {behavior_type}")
+    
     # Construct the output YAML path
     config = {
         'session_metadata': {
@@ -420,17 +207,17 @@ def files_to_config_NonRewarded(mat_file, csv_file,output_folder="data"):
             'institution': "Ecole Polytechnique Federale de Lausanne",
             'keywords': keywords,
             'lab' : "Laboratory of Sensory Processing",
-            'notes': "Combining high-density extracellular electrophysiological recordings (from wS1, tjM1, mPFC) with high-speed videography of orofacial movements of mice performing a psychometric whisker sensory detection task reported by licking, Oryshchuk et al.",
+            'notes': 'na',
             'pharmacology': 'na',
             'protocol': 'na',
             'related_publications': related_publications,
-            'session_description': "ephys" +" " + str(subject_info.get("Session Type", "Unknown").strip()) + ":" + " Whisker non-rewarded (WR ) mice, the whisker stimulus was decorrelated to reward delivery. The neuronal representation of sensory, motor, and decision information was examined in mice exposed to brief whisker stimuli that did not predict reward availability, in sensory, motor, and higher-order cortical areas.",
+            'session_description': session_description,
             'session_id': session_id,
             'session_start_time': session_start_time,
-            'slices': "Allen CCF tools was used to register brain slices and probe locations to the Allen mouse brain atlas.", 
+            'slices': "na", 
             'source_script': 'na',
             'source_script_file_name': 'na',
-            'stimulus_notes': 'C2 whisker stimulation (a brief magnetic pulse of 1-ms acting upon a small metal particle) occurred independently of trial timing and could happen at any moment. Stimulus trials included four whisker stimulus amplitudes of 1 , 1.8 , 2.5 , and 3.3 deflection of the right C2 whisker, also delivered with equal probabilities.',
+            'stimulus_notes': stimulus_notes,
             'surgery': 'na',
             'virus': 'na',
 
@@ -438,7 +225,7 @@ def files_to_config_NonRewarded(mat_file, csv_file,output_folder="data"):
         'subject_metadata': {
             'age': age,
             'age__reference': 'birth',
-            'date_of_birth': birth_date.strftime('%m/%d/%Y') if birth_date else None,
+            'date_of_birth': birth_date,
             'description': mouse,
             'genotype': genotype,
             'sex': subject_info.get("Sex_bin", "").upper().strip(),
@@ -457,3 +244,220 @@ def files_to_config_NonRewarded(mat_file, csv_file,output_folder="data"):
     return output_path, config
 
 
+#############################################################################
+# Function that creates the csv file for the NWB conversion
+#############################################################################
+
+def files_to_dataframe(mat_file, choice_mouses):
+
+    
+    csv_data = pd.DataFrame()
+    csv_data.columns = ['Mouse Name', 'User (user_userName)', 'Cell_ID', 'Ear tag',
+       'Start date (dd.mm.yy)', 'End date', 'Sex_bin', 'strain', 'mutations',
+       'Birth date', 'licence', 'DG', 'ExpEnd', 'Created on', 'Session',
+       'Session Date (yyymmdd)', 'Start Time (hhmmss)', 'Behavior Type',
+       'Session Type', 'Opto Session', 'Mouse Age (d)', 'Weight of Reference',
+       'Weight Session']
+    csv_data.columns.str.strip(inplace=True)
+
+    with h5py.File(mat_file, 'r') as f:
+        print(list(f.keys())) 
+        General_data = f['Data_Full']
+        print("Contenu de 'Data_Full' :", list(General_data.keys()))
+
+
+    mouse_name = General_data["LFP_Data"][0][0][0][0][0][0]
+
+    
+    # information general
+    _, id_session_indices = np.unique(General_data["LFP_Data"][0][0][4], return_index=True)
+    print(f"Number of sessions: {len(id_session_indices)}")
+    print(f"Number of files in PLALL: {len(sorted(os.listdir(PLALL)))}")
+    mouse_name = str(General_data["LFP_Data"][0][0][0][0][0][0])
+    strain = str(General_data["LFP_Data"][0][0][1][0][0][0])
+    sex = str(General_data["LFP_Data"][0][0][2][0][0][0])
+    raw_birth = General_data["LFP_Data"][0][0][3][0][0][0][0]
+    birth_date = "Unknown" if raw_birth is None or str(raw_birth).strip() in ["", "[]"] else str(raw_birth)
+
+    # informations sessions
+    # Iterate over each file in PLALL 
+
+    def extract_number(file_name):
+        if file_name.endswith('.mat'):
+            match = re.search(r'D(\d+)', file_name)
+            if match:
+                return int(match.group(1))
+            raise ValueError(f"No number found in a .mat file: {file_name}")
+        return -1
+
+    i = -1
+
+    for file_name in sorted(os.listdir(PLALL), key=extract_number):
+        file_path = os.path.join(PLALL, file_name)
+        if os.path.isfile(file_path) and file_name.endswith('.mat'):
+            i += 1
+            pli = loadmat(file_path)
+            # Start date
+            ## dd
+            dd = str(General_data["LFP_Data"][0][0][5][id_session_indices[i]][2][0][0])
+            if len(dd) == 1:
+                dd = "0" + dd
+            ## mm
+            mm = str(General_data["LFP_Data"][0][0][5][id_session_indices[i]][1][0][0])
+            if len(mm) == 1:
+                mm = "0" + mm
+            ## yy
+            yy = str(General_data["LFP_Data"][0][0][5][id_session_indices[i]][0][0][0])
+
+            start_date = dd + "." + mm + "." + yy
+            start_date_2 = yy + mm + dd
+            End_date = start_date
+
+            session = mouse_name + "_" + start_date_2
+
+            # Start time (hhmmss)
+            ## hh
+            hh = str(General_data["LFP_Data"][0][0][5][id_session_indices[i]][3][0][0])
+            if len(hh) == 1:
+                hh = "0" + hh
+            ## mm
+            mm = str(General_data["LFP_Data"][0][0][5][id_session_indices[i]][4][0][0])
+            if len(mm) == 1:
+                mm = "0" + mm
+            ## ss
+            ss = str(General_data["LFP_Data"][0][0][5][id_session_indices[i]][5][0][0])
+            if len(str(int(float(ss)))) == 1:
+                ss = "0" + str(int(float(ss)))
+            else:
+                ss = str(int(float(ss)))
+                
+            start_time = hh + mm +  ss
+
+            # Behavior type
+            behaviortype = str(General_data["LFP_Data"][0][0][6][id_session_indices[i]][0][0])
+            if behaviortype == "DT":
+                behaviortype = "Detection Task"
+            elif behaviortype == "X":
+                behaviortype = "Neutral Exposition"
+            else:
+                raise ValueError(f"Unknown behavior type: {behaviortype}")
+
+            # Stim_times
+            stim_onset= np.asarray(pli["Stim_times"][0][0][1][0])/1000
+            # Catch_times
+            catch_onset = np.asarray(pli["Catch_times"][0][0][0][0])/1000
+            # trial_onset
+            all_onsets = np.concatenate([stim_onset, catch_onset])
+            all_onsets_sorted = np.sort(all_onsets)
+
+
+            #EMG
+            if "EMG" in pli.keys():
+                EMG = np.asarray(pli["EMG"][0][0][1]).flatten()
+            else:
+                EMG = np.nan
+                
+            # PtA
+            if "PtA" in pli.keys():
+                PtA= np.asarray(pli["PtA"][0][0][1]).flatten()
+            else:
+                PtA = np.nan
+
+            # dCA1
+            if "dCA1" in pli.keys():
+                dCA1= np.asarray(pli["dCA1"][0][0][1]).flatten()
+            else:
+                dCA1 = np.nan
+
+            # mPFC
+            if "mPFC" in pli.keys():
+                mPFC= np.asarray(pli["mPFC"][0][0][1]).flatten()
+            else:
+                mPFC = np.nan
+
+            # wM1
+            if "wM1" in pli.keys():
+                wM1= np.asarray(pli["wM1"][0][0][1]).flatten()
+            else:
+                wM1 = np.nan
+
+            # wS1
+            if "wS1" in pli.keys():
+                wS1= np.asarray(pli["wS1"][0][0][1]).flatten()
+            else:
+                wS1 = np.nan
+
+            # wS2
+            if "wS2" in pli.keys():
+                wS2= np.asarray(pli["wS2"][0][0][1]).flatten()
+            else:
+                wS2 = np.nan
+
+
+            if "antM1" in pli.keys():
+                antM1 = np.asarray(pli["antM1"][0][0][1]).flatten()
+            else:
+                antM1 = np.nan
+
+            if "EEG" in pli.keys():
+                EEG = np.asarray(pli["EEG"][0][0][1]).flatten()
+            else:
+                EEG = np.nan
+
+            # Create a new row for the session
+            new_row = {
+                "Mouse Name": mouse_name,
+                "User (user_userName)": "PL",
+                "Ear tag": "Unknown",
+                "Start date (dd.mm.yy)": start_date,
+                "End date": End_date,
+                "Sex_bin": sex,
+                "strain": strain,
+                "mutations": "",
+                "Birth date": birth_date,
+                "licence": "1628",
+                "DG": "",
+                "ExpEnd": "",
+                "Created on": "Unknown",
+                "Session": session,
+                "Session Date (yyymmdd)": start_date_2,
+                "Start Time (hhmmss)": start_time,
+                "Behavior Type": behaviortype,
+                "Session Type": "Whisker Rewarded",
+                "Mouse Age (d)": "Unknown",
+                "Weight of Reference": "Unknown",
+                "Weight Session": "Unknown",
+                "Trial_onset" : ';'.join(map(str, all_onsets_sorted)),
+                "stim_onset": ';'.join(map(str, stim_onset)),
+                "catch_onset": ';'.join(map(str, catch_onset)),
+                "Responses_times": ';'.join(map(str, np.asarray(pli["Valve_times"][0][0][1][0])/1000)),
+                "EMG": ';'.join(map(str, EMG)) if not (isinstance(EMG, float) and np.isnan(EMG)) else np.nan,
+                "PtA": ';'.join(map(str, PtA)) if not (isinstance(PtA, float) and np.isnan(PtA)) else np.nan,
+                "dCA1": ';'.join(map(str, dCA1)) if not (isinstance(dCA1, float) and np.isnan(dCA1)) else np.nan,
+                "mPFC": ';'.join(map(str, mPFC)) if not (isinstance(mPFC, float) and np.isnan(mPFC)) else np.nan,
+                "wM1": ';'.join(map(str, wM1)) if not (isinstance(wM1, float) and np.isnan(wM1)) else np.nan,
+                "wS1": ';'.join(map(str, wS1)) if not (isinstance(wS1, float) and np.isnan(wS1)) else np.nan,
+                "wS2": ';'.join(map(str, wS2)) if not (isinstance(wS2, float) and np.isnan(wS2)) else np.nan,
+                "antM1": ';'.join(map(str, antM1)) if not (isinstance(antM1, float) and np.isnan(antM1)) else np.nan,
+                "EEG": ';'.join(map(str, EEG)) if not (isinstance(EEG, float) and np.isnan(EEG)) else np.nan
+            }
+
+            # Append the new row to the DataFrame
+            csv_data = pd.concat([csv_data, pd.DataFrame([new_row])], ignore_index=True)
+            print(f"Processing session file: {file_name}")
+    # Save the updated DataFrame to the CSV file
+    csv_data.to_csv(csv_file, sep=';', index=False)
+    return csv_data
+
+
+def remove_rows_by_mouse_name(df, mouse_name):
+    return df[df["Mouse Name"] != mouse_name]
+
+def remove_nwb_files(folder_path):
+    for filename in os.listdir(folder_path):
+        if filename.endswith('.nwb'):
+            file_path = os.path.join(folder_path, filename)
+            try:
+                os.remove(file_path)
+            except Exception as e:
+                print(f"Erreur lors de la suppression de {file_path}: {e}")

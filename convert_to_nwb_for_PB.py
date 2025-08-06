@@ -1,10 +1,6 @@
 """_summary_
 """
-import importlib
-import os
-import h5py
-from pynwb import NWBHDF5IO, validate
-import argparse
+# Import other modules
 import converters.behavior_to_nwb
 import converters.nwb_saving
 import converters.general_to_nwb
@@ -14,38 +10,55 @@ import converters.units_to_nwb
 import converters.analysis_to_nwb
 import converters.intervals_to_nwb
 
+# Import libraries
+import os
+import h5py
+import importlib
+import argparse
+import pandas as pd
+import numpy as np
+from pynwb import NWBHDF5IO, validate
+
+
+
 
 ############################################################
 # Functions for converting data to NWB format for AN sessions
 #############################################################
 
 
-def convert_data_to_nwb_an(mat_file, output_folder,psth_window=(-0.2, 0.5), psth_bin=0.010 ):
+def convert_data_to_nwb_PB(mat_file, output_folder, mouses_name = None):
     """
     Converts data from a config file to an NWB file.
     :param config_file: Path to the yaml config file containing mouse ID and metadata for the session to convert
     :param output_folder: Path to the folder to save NWB files
-    :param psth_window: Tuple of two floats representing the start and end of the PSTH and LFP window in seconds
-    :param psth_bin: Float representing the bin size for PSTH and LFP in seconds
+
     """
-    csv_file = "Subject_Session_Selection.csv"
-
-    # Load the .mat file 
-    with h5py.File(mat_file, 'r') as f:
-        data_group = f['Data'] if 'Data' in f else f
-        data = {key: data_group[key][()] for key in data_group.keys()}
-
+    csv_data = converters.Initiation_nwb.files_to_dataframe(mat_file = mat_file, choice_mouses = mouses_name)
+    csv_data.columns = csv_data.columns.str.strip() 
+    
+    all_sessions = csv_data["Session"]
+    
     print("**************************************************************************")
     print("-_-_-_-_-_-_-_-_-_-_-_-_-_-_- NWB conversion _-_-_-_-_-_-_-_-_-_-_-_-_-_-_")
-    print(" ")
-    print(f"📃 Creating config file for NWB conversion :")
-    importlib.reload(converters.Initiation_nwb)
-    Rewarded = converters.Initiation_nwb.Rewarded_or_not(mat_file=data, csv_file=csv_file)
-    if Rewarded:
-        output_path, config_file = converters.Initiation_nwb.files_to_config_Rewarded(data,csv_file=csv_file, output_folder=output_folder)
-    else:
-        output_path, config_file = converters.Initiation_nwb.files_to_config_NonRewarded(data,csv_file=csv_file, output_folder=output_folder)
+    for index, csv_data_row in csv_data.iterrows():
 
+        # Check the behavior type of the session
+        if csv_data_row["Behavior Type"] == "":
+            Rewarded = True
+        elif csv_data_row["Behavior Type"] == "":
+            Rewarded = False
+        else :
+            raise ValueError(f"Unknown behavior type: {csv_data_row['Behavior Type']}")
+
+
+        print("Converting data to NWB format for mouse:", list(all_sessions)) if index == 0 else None
+        print("📃 Creating configs for NWB conversion :") if index == 0 else None
+        importlib.reload(converters.Initiation_nwb)
+        # Create the config file for the NWB conversion
+        output_path, config_file = converters.Initiation_nwb.files_to_config(csv_data_row=csv_data_row, output_folder=output_folder, mat_file=mat_file)  
+
+    """
     print("📑 Created NWB file :")
     importlib.reload(converters.general_to_nwb)
     print(config_file['session_metadata']["session_description"])
@@ -117,7 +130,7 @@ def convert_data_to_nwb_an(mat_file, output_folder,psth_window=(-0.2, 0.5), psth
     if os.path.exists(output_path):
         os.remove(output_path)
 
-
+    """
 
 #_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_
 #_-_-_-_-_-_-_-_-_-_-_-_-_-_-_ MAIN _-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-
@@ -127,14 +140,11 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Convert data to NWB format for AN sessions")
     parser.add_argument("mat_file", type=str, help="Path to the .mat file containing the data")
     parser.add_argument("output_folder", type=str, help="Path to the folder where the NWB file will be saved")
-    parser.add_argument("--psth_window", type=float, nargs=2, default=(-0.2, 0.5), help="PSTH and LFP window in seconds for analysis")
-    parser.add_argument("--psth_bin", type=float, default=0.010, help="PSTH and LFP bin size in seconds for analysis")
+
 
     args = parser.parse_args()
 
-    convert_data_to_nwb_an(
+    convert_data_to_nwb_PB(
         mat_file=args.mat_file,
         output_folder=args.output_folder,
-        psth_window=tuple(args.psth_window),
-        psth_bin=args.psth_bin
     )
