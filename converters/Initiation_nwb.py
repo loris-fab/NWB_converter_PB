@@ -322,6 +322,9 @@ def files_to_dataframe(mat_file, choice_mouses):
     def safe_list(x):
         if x is None:
             return []
+        if isinstance(x, np.ndarray):
+            if x.size == 0 or (x.shape == (2,) and np.array_equal(x, [0, 0])):
+                return []
         arr = np.atleast_1d(x)
         return arr.tolist()
 
@@ -391,14 +394,15 @@ def files_to_dataframe(mat_file, choice_mouses):
                 out.append(_decode_any(arr))
         return np.array(out, dtype=object)
 
-    with tqdm(total=3) as pbar:
+    with tqdm(total=4) as pbar:
 
         with h5py.File(mat_file, 'r') as f:
 
-            # Step 1
+            # Step 1: Mouse metadata loaded
             time.sleep(1)
-            tqdm.write("Checkpoint 0: File opened successfully")
+            tqdm.write("Loading mouse metadata ...")
             pbar.update(1)
+
 
             Cell_ID        = read_cell_strings(f, 'Data_Full/Cell_ID')
             mouses_name    = np.array([s.split('_')[0] for s in Cell_ID])
@@ -406,11 +410,6 @@ def files_to_dataframe(mat_file, choice_mouses):
             Mouse_Sex      = read_cell_strings(f, 'Data_Full/Mouse_Sex')
             sessiontypes   = read_cell_strings(f, 'Data_Full/Session_Type')
             behaviortypes  = read_cell_strings(f, 'Data_Full/Sweep_Type')
-
-            # Step 2: Mouse metadata loaded
-            time.sleep(1)
-            tqdm.write("Checkpoint 1: Mouse metadata loaded")
-            pbar.update(1)
 
 
             # --- SWEEPS ----
@@ -426,9 +425,9 @@ def files_to_dataframe(mat_file, choice_mouses):
             cur_list  = read_cell_numeric_vectors(f, cm_refs)
             wa_list   = read_cell_numeric_vectors(f, wa_refs)
 
-            # Step 3: Signal data loaded
+            # Step 2: Signal data loaded
             time.sleep(1)
-            tqdm.write("Checkpoint 2.1: Sweep signal data loaded")
+            tqdm.write("Loading sweep signal data ...")
             pbar.update(1)
 
             # AP times
@@ -450,6 +449,11 @@ def files_to_dataframe(mat_file, choice_mouses):
             reward_refs = f['Data_Full/Sweep_Reward_Times'][()]
             reward_list = read_cell_numeric_vectors(f, reward_refs)
 
+            # Step 3: Sweep data loaded
+            time.sleep(1)
+            tqdm.write("Loading sweep behavior data ...")
+            pbar.update(1)
+
             # Behavior matrix (n_trials x 5)
             behav_refs = f['Data_Full/Sweep_Behavior'][()]
             behav_list = []
@@ -467,16 +471,6 @@ def files_to_dataframe(mat_file, choice_mouses):
             sr_vm_cm = 20000
             sr_wa    = 200
 
-            # Step 4: Sweep data loaded
-            time.sleep(1)
-            tqdm.write("Checkpoint 2.2: Sweep behavior data loaded")
-            pbar.update(1)
-                        
-            # Step 5: Fill the dataframe
-            time.sleep(1)
-            tqdm.write("Starting filling the dataframe to begin the NWB conversion")
-            pbar.update(1)
-
 
     # Verify if choice_mouses is correct
     if choice_mouses is None:
@@ -486,18 +480,17 @@ def files_to_dataframe(mat_file, choice_mouses):
         if missing:
             raise ValueError(f"Mouse name(s) not found in csv file: {missing}")
         
-    index_mouses_choices = [np.where(mouses_name == mouse)[0] for mouse in choice_mouses if mouse in mouses_name]
-    index_mouses_choices = np.concatenate(index_mouses_choices)
+    index_mouses_choices1 = [np.where(mouses_name == mouse)[0] for mouse in choice_mouses if mouse in mouses_name]
+    index_mouses_choices = np.concatenate(index_mouses_choices1)
 
 
     # Indices Session (cell_ID) for NWB
-    unique_ids, indice_unique_cell_id = np.unique(Cell_ID, return_index=True)
+    unique_ids, _ = np.unique(Cell_ID, return_index=True)
     cell = [np.arange(len(Cell_ID))[Cell_ID == unique_id] for unique_id in unique_ids]
     # Itèration over the indices of the choice mouses to collect data in the dataframe
-    for one_cell in tqdm(cell, total=len(cell), desc="Mouses Cells"):
+    for one_cell in tqdm(cell, total=len(index_mouses_choices1), desc="Creating a unified DataFrame : Adding Mouses Cells ..."):
         if one_cell[0] in index_mouses_choices:
             name = mouses_name[one_cell[0]]
-            #print(f"Processing mouse: {name} ({one_cell[0]})")
             user = name[:2]
             birth_date = birth_dates[one_cell[0]]
             sex = Mouse_Sex[one_cell[0]]
@@ -656,7 +649,7 @@ def files_to_dataframe(mat_file, choice_mouses):
                 "strain":  "C57BL/6JRj",
                 "mutations": "WT",
                 "Birth date": birth_date,
-                "licence": "1628",
+                "licence": "VD-1628",
                 #"DG": "",
                 #"ExpEnd": "",
                 "Created on": "Unknown", # UNKNOWN
