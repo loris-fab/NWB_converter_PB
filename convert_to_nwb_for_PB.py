@@ -6,7 +6,6 @@ import converters.nwb_saving
 import converters.general_to_nwb
 import converters.Initiation_nwb
 import converters.acquisition_to_nwb
-import converters.analysis_to_nwb
 import converters.intervals_to_nwb
 
 # Import libraries
@@ -22,6 +21,7 @@ from pathlib import Path
 from tqdm import tqdm
 import gc
 
+subject_session_selection = pd.read_csv('Subject_Session_Selection.csv')
 
 
 ############################################################
@@ -36,8 +36,9 @@ def convert_data_to_nwb_PB(mat_file, output_folder, mouses_name = None):
     print("**************************************************************************")
     print("-_-_-_-_-_-_-_-_-_-_-_-_-_-_- NWB conversion _-_-_-_-_-_-_-_-_-_-_-_-_-_-_")
     print("📥 Collecting data from .mat file:", mat_file)
+
     importlib.reload(converters.Initiation_nwb)
-    csv_data = converters.Initiation_nwb.files_to_dataframe(mat_file = mat_file, choice_mouses = mouses_name)
+    csv_data = converters.Initiation_nwb.files_to_dataframe(mat_file = mat_file, choice_mouses = mouses_name, dataframe_subject=subject_session_selection)
     csv_data.columns = csv_data.columns.str.strip()
     gc.collect()
 

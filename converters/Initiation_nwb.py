@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from typing import List, Optional
 from dateutil.tz import tzlocal
 from pynwb.file import Subject
 from scipy.io import loadmat
@@ -252,7 +253,7 @@ def files_to_config(subject_info,output_folder="data"):
 # Function that creates the csv file for the NWB conversion
 #############################################################################
 
-def files_to_dataframe(mat_file, choice_mouses):
+def files_to_dataframe(mat_file, choice_mouses,dataframe_subject):
 
     columns = ['Mouse Name', 'User (user_userName)', 'Cell_ID', 'Ear tag',
         'Start date (dd.mm.yy)', 'End date', 'Sex_bin', 'strain', 'mutations',
@@ -262,6 +263,52 @@ def files_to_dataframe(mat_file, choice_mouses):
         'Weight Session']
     csv_data = pd.DataFrame(columns=columns)
     csv_data.columns = csv_data.columns.str.strip()
+
+
+    def reward_in_trial(
+        reward_times: List[datetime],
+        trial_start: datetime,
+        trial_stop: datetime,
+        has_reward: bool
+    ) -> Optional[datetime]:
+        """
+        Return the reward datetime if it falls within [trial_start, trial_stop].
+
+        Parameters
+        ----------
+        reward_times : list of datetime
+            Reward timestamps.
+        trial_start : datetime
+            Start time of the trial.
+        trial_stop : datetime
+            Stop time of the trial.
+        has_reward : bool
+            Whether the trial should have a reward.
+
+        Returns
+        -------
+        datetime or None
+            The reward datetime if exactly one is found, None if has_reward=False.
+
+        Raises
+        ------
+        ValueError
+            If has_reward=True but no reward or multiple rewards are found in the interval.
+        """
+        if not has_reward:
+            return None
+        if trial_stop < trial_start:
+            raise ValueError("trial_stop is before trial_start")
+
+        hits = [t for t in reward_times if trial_start <= t <= trial_stop]
+
+        if len(hits) == 1:
+            return hits[0]
+        if len(hits) == 0:
+            raise ValueError("Inconsistency: has_reward=True but no reward in interval.")
+        raise ValueError(f"Inconsistency: multiple rewards in interval: {hits}")
+
+
 
     def to_text(x):
         a = np.array(x)
@@ -406,7 +453,7 @@ def files_to_dataframe(mat_file, choice_mouses):
 
             Cell_ID        = read_cell_strings(f, 'Data_Full/Cell_ID')
             mouses_name    = np.array([s.split('_')[0] for s in Cell_ID])
-            birth_dates    = read_birth_dates(f, 'Data_Full/Mouse_DateOfBirth')
+            #birth_dates    = read_birth_dates(f, 'Data_Full/Mouse_DateOfBirth')
             Mouse_Sex      = read_cell_strings(f, 'Data_Full/Mouse_Sex')
             sessiontypes   = read_cell_strings(f, 'Data_Full/Session_Type')
             behaviortypes  = read_cell_strings(f, 'Data_Full/Sweep_Type')
@@ -491,8 +538,7 @@ def files_to_dataframe(mat_file, choice_mouses):
     for one_cell in tqdm(cell, total=len(index_mouses_choices1), desc="Creating a unified DataFrame : Adding Mouses Cells ..."):
         if one_cell[0] in index_mouses_choices:
             name = mouses_name[one_cell[0]]
-            user = name[:2]
-            birth_date = birth_dates[one_cell[0]]
+            #birth_date = birth_dates[one_cell[0]]
             sex = Mouse_Sex[one_cell[0]]
             session_type = sessiontypes[one_cell[0]]
             behaviortype = " & ".join(np.unique(behaviortypes[one_cell]))
@@ -500,6 +546,21 @@ def files_to_dataframe(mat_file, choice_mouses):
             session_date = sweep_start_times[one_cell[0]].strftime("%Y%m%d") if not pd.isnull(sweep_start_times[one_cell[0]]) else None
             start_time_hhmmss = sweep_start_times[one_cell[0]].strftime("%H%M%S") if not pd.isnull(sweep_start_times[one_cell[0]]) else None
             end_date = sweep_start_times[one_cell[-1]].strftime("%d.%m.%y") if not pd.isnull(sweep_start_times[one_cell[-1]]) else None
+
+
+
+            row = dataframe_subject[dataframe_subject['Mouse Name'] == name]
+            date_str = str(row['Birth date'].iloc[0]).strip() 
+            birth_date = date_str.replace("/", ".")
+            date_session_str = str(row['Start date'].iloc[0]).strip()
+            date_session_str = date_session_str.replace("/", ".")
+            Weight_Session = float(row['Weight Experimet day'].iloc[0])
+            ref_weight = float(row['Weight of Refence'].iloc[0]) 
+            Ear_tag = str(row['Ear tag'].iloc[0]).strip()
+            Created_on = str(row['Created on'].iloc[0]).strip()
+            user = str(row['User (user_userName)'].iloc[0]).strip()
+            task = str(row['Behavioral task'].iloc[0]).strip()
+            counter = int(row['Session Number'].iloc[0])
 
             sweeps = []
             for one_sweep in one_cell:
@@ -521,12 +582,13 @@ def files_to_dataframe(mat_file, choice_mouses):
                 #dur_wa = float(wa.size / sr_wa)    if sr_wa and wa.size>0 else None
 
                 # absolute times
-                ap_abs = safe_abs_times(ap_rel, t0) if t0 is not None else None
-                stim_on_abs  = safe_abs_times(stim_on, t0)  if t0 is not None else None
-                reward_abs   = safe_abs_times(reward_rel, t0) if t0 is not None else None
+                ap_abs = safe_abs_times(safe_list(ap_rel), t0) if t0 is not None else None
+                stim_on_abs  = safe_abs_times(safe_list(stim_on), t0)  if t0 is not None else None
+                reward_abs   = safe_abs_times(safe_list(reward_rel), t0) if t0 is not None else None
 
                 # Trials -> liste de dicts (col1=ts rel, col2=stim?, col3=lick, col4=reward, col5=response)
                 trials = []
+                duration_trial = 2.0
                 if behav.size > 0:
                     ts_rel   = behav[:,0].astype(float)
                     has_stim = behav[:,1].astype(bool)
@@ -551,7 +613,7 @@ def files_to_dataframe(mat_file, choice_mouses):
                         else :
                             if len(stim_on) != len(stim_on_abs) or len(stim_on) != len(stim_amp) or len(stim_on) != len(stim_dur) or len(stim_on) != len(stim_type):
                                 raise ValueError(f"Stimulus data length mismatch: {len(stim_on)} vs {len(stim_on_abs)}, {len(stim_amp)}, {len(stim_dur)}, {len(stim_type)} for sweep {one_sweep} and mouse {name}")
-                                                    
+
                     ind_stim = 0
                     for k in range(len(ts_rel)):
                         if bool(has_stim[k]) == False:
@@ -561,6 +623,7 @@ def files_to_dataframe(mat_file, choice_mouses):
                             "time_abs": ts_abs[k],
                             "lick": bool(lick[k]),
                             "reward": bool(reward_b[k]),
+                            "reward_time": reward_in_trial(reward_abs, ts_abs[k], ts_abs[k] + timedelta(seconds=2), bool(reward_b[k])),
                             "response": int(response[k]),
                             'has_stim': bool(has_stim[k]),
                             'amplitude': 0,
@@ -574,6 +637,7 @@ def files_to_dataframe(mat_file, choice_mouses):
                             "time_abs": ts_abs[k],
                             "lick": bool(lick[k]),
                             "reward": bool(reward_b[k]),
+                            "reward_time": reward_in_trial(reward_abs, ts_abs[k], ts_abs[k] + timedelta(seconds=2), bool(reward_b[k])),
                             "response": int(response[k]),
                             'has_stim': bool(has_stim[k]),
                             'onset_time_rel_s': stim_on[ind_stim] ,
@@ -595,7 +659,7 @@ def files_to_dataframe(mat_file, choice_mouses):
                     "Sweep Start Time": t0,
                     "Sweep Stop Time": t0 + timedelta(seconds=float(dur_vm)),
                     "Sweep Type": str(behaviortypes[one_sweep]),
-                    'behav': behav,
+                    #'behav': behav,
 
                     # Signaux
                     "membrane_potential": {
@@ -642,26 +706,28 @@ def files_to_dataframe(mat_file, choice_mouses):
                 "Mouse Name": name,
                 "User (user_userName)": user,
                 "Cell_ID": Cell_ID[one_cell[0]],
-                "Ear tag": "Unknown", # UNKNOWN
+                "Ear tag": Ear_tag,
                 "Start date (dd.mm.yy)": start_date,
                 "End date": end_date,
                 "Sex_bin": sex,
                 "strain":  "C57BL/6JRj",
                 "mutations": "WT",
                 "Birth date": birth_date,
-                "licence": "VD-1628",
+                "licence": "VD-1628.6",
                 #"DG": "",
                 #"ExpEnd": "",
-                "Created on": "Unknown", # UNKNOWN
+                "Created on": Created_on, 
                 "Session": Cell_ID[one_cell[0]] + "_" + session_date,
+                "counter": counter,
                 "Session Date (yyymmdd)": session_date,
                 "Start Time (hhmmss)": start_time_hhmmss,
                 "Behavior Type": behaviortype,
                 "Session Type": session_type,
+                "task": task,
                 "sweeps": sweeps,
-                "Mouse Age (d)": "Unknown", # UNKNOWN
-                "Weight of Reference": "Unknown", # UNKNOWN
-                "Weight Session": "Unknown" # UNKNOWN
+                "Mouse Age (d)": "unknown",
+                "Weight of Reference": ref_weight,
+                "Weight Session": Weight_Session 
             }
 
             # Append the new row to the DataFrame
