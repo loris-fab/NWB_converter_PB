@@ -8,63 +8,86 @@ from pynwb.epoch import TimeIntervals
 # Functions for converting intervals to NWB format for AN sessions
 ###############################################################
 
-def add_intervals_container_Rewarded(nwb_file, csv_data_row):
+def add_intervals_container(nwb_file,csv_data_row) -> None:
     """
-    Add detailed trial information to the NWBFile 
-    """
+    Populate `nwb_file.trials` from one CSV-like row by parsing trial-level fields
+    and adding one NWB trial per entry.
 
+    Args:
+        nwb_file (pynwb.file.NWBFile): Target NWB file to which trials are added.
+        csv_data_row (pandas.Series | Mapping): Row containing at least the keys:
+            "Trial_onset", "stim_indices", "stim_amp", "stim_onset",
+            "lickflag", "response_data", "lick_time".
+            Values are expected as semicolon-separated strings.
+        Rewarded (bool): If True, sets `reward_available=1` for all trials (else 0).
+
+    Returns:
+        None
+
+    """
     sweep_data = csv_data_row["sweeps"]
     trial_onsets = np.array([])
-    stim_indices = np.array([])
-    stim_amps = np.array([])
-    response_data = np.array([])
+    whisker_stim = np.array([])
+    perf = np.array([])
+    whisker_stim_amplitude = np.array([])
+    whisker_stim_time = np.array([])
+    reward_available = np.array([])
+    stim_type = np.array([])
     Sweep_IDs = np.array([])
     Sweep_Start_time = np.array([])
     Sweep_Stop_time = np.array([])
-    sweep_type = np.array([])
+    trial_type = np.array([])
+    lick_flag = np.array([])
+
+    response_window = 2.0
+
     for One_sweep in sweep_data:
-        print(type(One_sweep))
-        print(One_sweep.keys())
         for One_trial in One_sweep["trials"]:
-            print(type(One_trial))
-            print(One_trial.keys())
-            trial_onsets = np.append(trial_onsets, One_trial["time_abs"].second)
-            stim_indices = np.append(stim_indices, One_trial["has_stim"])
-            stim_amps = np.append(stim_amps, One_trial["amplitude"])
-            response_data = np.append(response_data, One_trial["response"])
+            trial_onsets = np.append(trial_onsets, One_trial["time_abs"])
+            whisker_stim = np.append(whisker_stim, One_trial["has_stim"])
+            whisker_stim_amplitude = np.append(whisker_stim_amplitude, One_trial["amplitude"])
+            perf = np.append(perf, One_trial["response"])
             Sweep_IDs = np.append(Sweep_IDs, One_sweep["Sweep Index"])
-            Sweep_Start_time = np.append(Sweep_Start_time, One_sweep["Sweep Start Time"].second)
-            Sweep_Stop_time = np.append(Sweep_Stop_time, One_sweep["Sweep Stop Time"].second)
-            sweep_type = np.append(sweep_type, One_sweep["Sweep Type"])
+            Sweep_Start_time = np.append(Sweep_Start_time, One_sweep["Sweep Start Time"])
+            Sweep_Stop_time = np.append(Sweep_Stop_time, One_sweep["Sweep Stop Time"])
+            trial_type = np.append(trial_type, One_sweep["Sweep Type"])
+            whisker_stim_time = np.append(whisker_stim_time, One_trial["stim_time_abs"] if One_trial["has_stim"] else np.nan)
+            reward_available = np.append(reward_available, 1 if One_trial["reward"] else 0)
+            lick_flag = np.append(lick_flag, 1 if One_trial["lick"] else 0)
+            stim_type = np.append(stim_type, One_sweep["type"])
 
     trial_onsets = trial_onsets.astype(np.float64)
-    stim_indices = stim_indices.astype(np.int64)
-    stim_amps = stim_amps.astype(np.int64)
-
-    response_labels = np.full(response_data.shape, '', dtype=object)
-    response_labels[response_data == 1] = "hit"
-    response_labels[response_data == 0] = "miss"
-    response_labels[response_data == 2] = "CR"
-    response_labels[response_data == 3] = "FA"
-
+    whisker_stim = whisker_stim.astype(np.int64)
+    whisker_stim_amplitude = whisker_stim_amplitude.astype(np.int64)
+    perf = perf.astype(np.int64)
+    whisker_stim_time = whisker_stim_time.astype(np.float64)
+    reward_available = reward_available.astype(np.int64)
     Sweep_IDs = Sweep_IDs.astype(np.int64)
     Sweep_Start_time = Sweep_Start_time.astype(np.float64)
+    trial_type = trial_type.astype(str)
+    lick_flag = lick_flag.astype(np.int64)
     Sweep_Stop_time = Sweep_Stop_time.astype(np.float64)
-    sweep_type = sweep_type.astype(str)
+    stim_type = stim_type.astype(str)
 
     # --- Define new trial columns ---
     new_columns = {
-        'trial_type': 'Stimulus Whisker vs no stimulation trial',
-        'whisker_stim': '1 if whisker stimulus delivered, else 0',
-        'whisker_stim_amplitude': 'Amplitude of whisker stimulus',
-        'Sweep_ID': 'ID of the sweep where the trial occurred',
+        'Sweep_ID': 'Unique identifier for each sweep',
         'Sweep_Start_time': 'Start time of the sweep',
         'Sweep_Stop_time': 'Stop time of the sweep',
-        #'reward_available': 'Whether reward could be earned (1 = yes)',
-        #'response_window_start_time': 'Start of response window',
-        'ResponseType': 'Trial outcome label (Hit, Miss, etc.)',
-        #'lick_time': 'Timestamps of licks in trial',
-        'Sweep_ID': 'Sweep ID where trial occurred',
+        'trial_type': 'stimulus Whisker vs no stimulus trial',
+        'whisker_stim': '1 if whisker stimulus delivered, else 0',
+        'perf': '0= whisker miss; 1= whisker hit ; 2= correct rejection ; 3= false alarm',
+        "whisker_stim_amplitude": "Amplitude of the whisker stimulation between 0 and 5",
+        "whisker_stim_duration": "Duration of the whisker stimulation (ms)",
+        "whisker_stim_time": "trial start time for whisker_stim=1 else NaN",
+        "no_stim" : "1 if no stimulus delivered, else 0",
+        #"no_stim_time": "trial start time for no_stim=1 (catch trial) else NaN",
+        "reward_available": "1 if reward is available, else 0",
+        "response_window_start_time": "Start of response window",
+        "response_window_stop_time": "Stop of response window",
+        "lick_flag": "1 if lick detected, else 0",
+        "stim_type": "Type of stimulus presented",
+        #"lick_time": "Within response window lick time. Absolute time (s) relative to session start time"
     }
 
     # --- Add columns before inserting trials ---
@@ -83,18 +106,23 @@ def add_intervals_container_Rewarded(nwb_file, csv_data_row):
     for i in range(len(trial_onsets)):
         nwb_file.add_trial(
             start_time=float(trial_onsets[i]),
-            stop_time=float(trial_onsets[i]) + 1.0,
-
-            trial_type=sweep_type[i],
-            whisker_stim=int(stim_indices[i]),
-            whisker_stim_amplitude=float(stim_amps[i]),
-            Sweep_ID=int(Sweep_IDs[i]),
-            Sweep_Start_time=float(Sweep_Start_time[i]),
-            Sweep_Stop_time=float(Sweep_Stop_time[i]),
-            #reward_available=1,
-            #response_window_start_time=float(reaction_abs[i]),
-            ResponseType=response_labels[i],
-            #lick_time=lick_time_per_trial[i]
-
+            stop_time=float(trial_onsets[i]) + response_window,
+            Sweep_ID=Sweep_IDs[i],
+            Sweep_Start_time=Sweep_Start_time[i],
+            Sweep_Stop_time=Sweep_Stop_time[i],
+            trial_type='whisker_trial' if whisker_stim[i] else 'no_whisker_trial',
+            whisker_stim=whisker_stim[i],
+            perf=perf[i],
+            whisker_stim_time=whisker_stim_time[i],
+            whisker_stim_amplitude=whisker_stim_amplitude[i],
+            stim_type=stim_type[i],
+            whisker_stim_duration=str("1 (ms)"),
+            no_stim= 1 if whisker_stim[i] == 0 else 0,
+            #no_stim_time=no_stim_time[i],
+            reward_available=1 if reward_available[i] else 0,
+            response_window_start_time=float(trial_onsets[i]) + 0.05,
+            response_window_stop_time=float(trial_onsets[i]) + 1,
+            lick_flag=lick_flag[i],
+            #lick_time=lick_time[i]
         )
 

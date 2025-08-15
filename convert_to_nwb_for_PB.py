@@ -75,6 +75,9 @@ def convert_data_to_nwb_PB(mat_file, output_folder, mouses_name = None):
             importlib.reload(converters.general_to_nwb)
             nwb_file = converters.Initiation_nwb.create_nwb_file_an(config_file=output_path)  #same between Rewarded and NonRewarded sessions
 
+            # o ⏸️ Add intervall container
+            importlib.reload(converters.intervals_to_nwb)
+            converters.intervals_to_nwb.add_intervals_container(nwb_file=nwb_file, csv_data_row=csv_data_row)
 
             if False:
                 # o 📌 Add general metadata
@@ -111,9 +114,6 @@ def convert_data_to_nwb_PB(mat_file, output_folder, mouses_name = None):
                 #print("             > Added LFP_mean_across_all_units to analysis module") if i == 1 else None
                 #print("             > Added global_LFP to analysis module") if i == 1 else None
             
-                # o ⏸️ Add intervall container
-                importlib.reload(converters.intervals_to_nwb)
-                converters.intervals_to_nwb.add_intervals_container_Rewarded(nwb_file=nwb_file, csv_data_row=csv_data_row)
             else:
                 pass
 

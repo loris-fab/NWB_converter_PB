@@ -441,14 +441,9 @@ def files_to_dataframe(mat_file, choice_mouses,dataframe_subject):
                 out.append(_decode_any(arr))
         return np.array(out, dtype=object)
 
-    with tqdm(total=4) as pbar:
+    with tqdm(total=5) as pbar:
 
         with h5py.File(mat_file, 'r') as f:
-
-            # Step 1: Mouse metadata loaded
-            time.sleep(1)
-            tqdm.write("Loading mouse metadata ...")
-            pbar.update(1)
 
 
             Cell_ID        = read_cell_strings(f, 'Data_Full/Cell_ID')
@@ -458,6 +453,10 @@ def files_to_dataframe(mat_file, choice_mouses,dataframe_subject):
             sessiontypes   = read_cell_strings(f, 'Data_Full/Session_Type')
             behaviortypes  = read_cell_strings(f, 'Data_Full/Sweep_Type')
 
+            # Step 1: Mouse metadata loaded
+            time.sleep(1)
+            tqdm.write("Loading mouse metadata ...")
+            pbar.update(1)
 
             # --- SWEEPS ----
             # Start times
@@ -468,13 +467,24 @@ def files_to_dataframe(mat_file, choice_mouses,dataframe_subject):
             cm_refs   = f['Data_Full/Sweep_CurrentMonitor'][()]
             wa_refs   = f['Data_Full/Sweep_WhiskerAngle'][()]
 
+            # Step 2: Signal data loaded
+            time.sleep(1)
+            tqdm.write("Loading sweep signal data (1/3) ...")
+            pbar.update(1)
+
+            lick_refs   = f['Data_Full/Sweep_Lick'][()]
+            lick_power_refs = f['Data_Full/Sweep_Lick_Power'][()]
+            lick_threshold  = np.array(f['Data_Full/Sweep_Lick_Threshold'][()]).squeeze() 
+
             vm_list   = read_cell_numeric_vectors(f, mp_refs)  # 487 éléments, np.array par sweep
             cur_list  = read_cell_numeric_vectors(f, cm_refs)
             wa_list   = read_cell_numeric_vectors(f, wa_refs)
+            lick_list        = read_cell_numeric_vectors(f, lick_refs)
+            lick_power_list  = read_cell_numeric_vectors(f, lick_power_refs)
 
-            # Step 2: Signal data loaded
+            # Step 3: Signal data loaded
             time.sleep(1)
-            tqdm.write("Loading sweep signal data ...")
+            tqdm.write("Loading sweep signal data (2/3) ...")
             pbar.update(1)
 
             # AP times
@@ -496,9 +506,9 @@ def files_to_dataframe(mat_file, choice_mouses,dataframe_subject):
             reward_refs = f['Data_Full/Sweep_Reward_Times'][()]
             reward_list = read_cell_numeric_vectors(f, reward_refs)
 
-            # Step 3: Sweep data loaded
+            # Step 4: Sweep data loaded
             time.sleep(1)
-            tqdm.write("Loading sweep behavior data ...")
+            tqdm.write("Loading sweep signal data (3/3) ...")
             pbar.update(1)
 
             # Behavior matrix (n_trials x 5)
@@ -518,6 +528,10 @@ def files_to_dataframe(mat_file, choice_mouses,dataframe_subject):
             sr_vm_cm = 20000
             sr_wa    = 200
 
+            # Step 5: Sweep data loaded
+            time.sleep(1)
+            tqdm.write("Loading sweep behavior data ...")
+            pbar.update(1)
 
     # Verify if choice_mouses is correct
     if choice_mouses is None:
@@ -545,6 +559,9 @@ def files_to_dataframe(mat_file, choice_mouses,dataframe_subject):
             start_date = sweep_start_times[one_cell[0]].strftime("%d.%m.%y") if not pd.isnull(sweep_start_times[one_cell[0]]) else None
             session_date = sweep_start_times[one_cell[0]].strftime("%Y%m%d") if not pd.isnull(sweep_start_times[one_cell[0]]) else None
             start_time_hhmmss = sweep_start_times[one_cell[0]].strftime("%H%M%S") if not pd.isnull(sweep_start_times[one_cell[0]]) else None
+    
+            start_time = sweep_start_times[one_cell[0]] if not pd.isnull(sweep_start_times[one_cell[0]]) else None
+
             end_date = sweep_start_times[one_cell[-1]].strftime("%d.%m.%y") if not pd.isnull(sweep_start_times[one_cell[-1]]) else None
 
 
@@ -620,7 +637,7 @@ def files_to_dataframe(mat_file, choice_mouses,dataframe_subject):
                             trials.append({
                             "trial_index": int(k),
                             "time_rel_s": float(ts_rel[k]),
-                            "time_abs": ts_abs[k],
+                            "time_abs": (ts_abs[k]- start_time).total_seconds(),
                             "lick": bool(lick[k]),
                             "reward": bool(reward_b[k]),
                             "reward_time": reward_in_trial(reward_abs, ts_abs[k], ts_abs[k] + timedelta(seconds=2), bool(reward_b[k])),
@@ -634,14 +651,14 @@ def files_to_dataframe(mat_file, choice_mouses,dataframe_subject):
                             trials.append({
                             "trial_index": int(k),
                             "time_rel_s": float(ts_rel[k]),
-                            "time_abs": ts_abs[k],
+                            "time_abs": (ts_abs[k]- start_time).total_seconds(),
                             "lick": bool(lick[k]),
                             "reward": bool(reward_b[k]),
                             "reward_time": reward_in_trial(reward_abs, ts_abs[k], ts_abs[k] + timedelta(seconds=2), bool(reward_b[k])),
                             "response": int(response[k]),
                             'has_stim': bool(has_stim[k]),
-                            'onset_time_rel_s': stim_on[ind_stim] ,
-                            'onset_time_abs': stim_on_abs[ind_stim] if stim_on_abs is not None else None,
+                            'stim_time_rel_s': stim_on[ind_stim] ,
+                            'stim_time_abs': (stim_on_abs[ind_stim]- start_time).total_seconds() if stim_on_abs is not None else None,
                             'amplitude': stim_amp[ind_stim],
                             'duration_s': stim_dur[ind_stim],
                             'type': stim_type[ind_stim]
@@ -656,8 +673,8 @@ def files_to_dataframe(mat_file, choice_mouses,dataframe_subject):
 
                 sweep_dict = {
                     "Sweep Index": int(one_sweep),
-                    "Sweep Start Time": t0,
-                    "Sweep Stop Time": t0 + timedelta(seconds=float(dur_vm)),
+                    "Sweep Start Time": ((t0) - start_time).total_seconds(),
+                    "Sweep Stop Time": ((t0 + timedelta(seconds=float(dur_vm))) - start_time).total_seconds(),
                     "Sweep Type": str(behaviortypes[one_sweep]),
                     #'behav': behav,
 
@@ -684,13 +701,20 @@ def files_to_dataframe(mat_file, choice_mouses,dataframe_subject):
                     # Spikes
                     "ap_times": {
                         "relative_s": safe_list(ap_rel),
-                        "absolute": ap_abs
+                        "absolute": [(t - start_time).total_seconds() if t is not None else None for t in ap_abs] if ap_abs else []
                     },
                     
                     # Rewards
                     "reward_times": {
                         "relative_s": safe_list(reward_rel),
-                        "absolute": reward_abs
+                        "absolute": [(t - start_time).total_seconds() if t is not None else None for t in reward_abs] if reward_abs else []
+                    },
+
+                    "lick": {
+                        "sampling_rate_Hz": 20000, 
+                        "data": safe_list(lick_list[one_sweep]) if lick_list[one_sweep].size > 0 else [],
+                        "power": safe_list(lick_power_list[one_sweep]) if lick_power_list[one_sweep].size > 0 else [],
+                        "threshold": float(lick_threshold[one_sweep]) if not np.isnan(lick_threshold[one_sweep]) else None
                     },
 
                     # Trials
