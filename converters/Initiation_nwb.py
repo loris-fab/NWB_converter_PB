@@ -19,11 +19,18 @@ import re
 
 def create_nwb_file_an(config_file):
     """
-    Create an NWB file object using all metadata containing in YAML file
+    Create an NWBFile from a YAML configuration.
 
     Args:
-        config_file (str): Absolute path to YAML file containing the subject experimental metadata
+        config_file (str): Absolute path to a YAML file containing
+            "subject_metadata" and "session_metadata" sections.
 
+    Returns:
+        pynwb.file.NWBFile: The in-memory NWB file object.
+        None: If the YAML cannot be read or required fields are missing.
+
+    Raises:
+        ValueError: If NWB file creation fails after parsing the config.
     """
 
     try:
@@ -102,6 +109,18 @@ def create_nwb_file_an(config_file):
 
 
 def files_to_config(subject_info,output_folder="data"):
+    """
+    Build a session/subject NWB config from one CSV row and save it as YAML.
+
+    Args:
+        csv_data_row (pandas.Series or Mapping): Row with fields such as
+            "Mouse Name", "Session", "Session Date (yyymmdd)", "Start Time (hhmmss)",
+            "Behavior Type", etc.
+        output_folder (str or pathlib.Path): Folder where the YAML file is saved.
+
+    Returns:
+        tuple[str, dict]: (output_path to the written YAML file, in-memory config dict).
+    """
     related_publications = 'n.a (no publication yet)'
     
 
@@ -254,6 +273,22 @@ def files_to_config(subject_info,output_folder="data"):
 #############################################################################
 
 def files_to_dataframe(mat_file, choice_mouses,dataframe_subject):
+    """
+    Load a preprocessed MATLAB .mat file and subject metadata into a unified pandas DataFrame.
+
+    Args:
+        mat_file (str | Path): Path to the .mat file containing "Data_Full/*" groups.
+        choice_mouses (list[str] | None): List of mouse names to include. If None, all are included.
+        dataframe_subject (pd.DataFrame): Subject/session metadata table with required columns
+            (e.g. 'Mouse Name', 'Birth date', 'Ear tag', 'Weight of Reference', etc.).
+
+    Returns:
+        pd.DataFrame: One row per mouse/session with metadata and a 'sweeps' column.
+            Each 'sweeps' entry is a list of dicts containing:
+            - Sweep metadata (index, start/stop time, type)
+            - Signals (membrane potential, current monitor, whisker angle, lick, etc.)
+            - Spike, reward, and trial information.
+    """
 
     columns = ['Mouse Name', 'User (user_userName)', 'Cell_ID', 'Ear tag',
         'Start date (dd.mm.yy)', 'End date', 'Sex_bin', 'strain', 'mutations',
@@ -755,7 +790,7 @@ def files_to_dataframe(mat_file, choice_mouses,dataframe_subject):
             }
 
             # Append the new row to the DataFrame
-            csv_data = pd.concat([csv_data, pd.DataFrame([new_row])], ignore_index=True)
+            csv_data.loc[len(csv_data)] = new_row
     return csv_data
 
 def remove_rows_by_mouse_name(df, mouse_name):
