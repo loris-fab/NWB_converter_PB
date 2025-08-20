@@ -295,7 +295,7 @@ def files_to_dataframe(mat_file, choice_mouses,dataframe_subject):
         'Birth date', 'licence', 'DG', 'ExpEnd', 'Created on', 'Session',
         'Session Date (yyymmdd)', 'Start Time (hhmmss)', 'Behavior Type',
         'Session Type','sweeps', 'Opto Session', 'Mouse Age (d)', 'Weight of Reference',
-        'Weight Session']
+        'Weight Session', "task", "counter"]
     csv_data = pd.DataFrame(columns=columns)
     csv_data.columns = csv_data.columns.str.strip()
 

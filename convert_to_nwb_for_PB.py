@@ -48,7 +48,7 @@ def convert_data_to_nwb_PB(output_folder, mouses_name = None):
         'Birth date', 'licence', 'DG', 'ExpEnd', 'Created on', 'Session',
         'Session Date (yyymmdd)', 'Start Time (hhmmss)', 'Behavior Type',
         'Session Type', 'Opto Session', 'Mouse Age (d)', 'Weight of Reference',
-        'Weight Session']].head(5))
+        'Weight Session', "task", "counter"]].head(5))
 
 
     print("Converting data to NWB format for mouse:", list(csv_data["Cell_ID"]))
@@ -94,13 +94,13 @@ def convert_data_to_nwb_PB(output_folder, mouses_name = None):
                 None
 
         
-            # o 📶 Add acquisition container
-            converters.acquisition_to_nwb.add_acquisitions_3series(nwb_file, lfp_array=signal_LFP, electrode_region_all=electrode_table_region, channel_labels=labels, emg=EMG, eeg=EEG)  #same between Rewarded and NonRewarded sessions
+        # o 📶 Add acquisition container
+        #converters.acquisition_to_nwb.add_acquisitions_3series(nwb_file, lfp_array=signal_LFP, electrode_region_all=electrode_table_region, channel_labels=labels, emg=EMG, eeg=EEG)  #same between Rewarded and NonRewarded sessions
 
 
         # o ⚙️ Add behavior container
         importlib.reload(converters.behavior_to_nwb)
-        #converters.behavior_to_nwb.add_behavior_container(nwb_file=nwb_file,csv_data_row=csv_data_row)
+        converters.behavior_to_nwb.add_behavior_container(nwb_file=nwb_file,csv_data_row=csv_data_row)
 
         # 🔎 Validating NWB file and saving...
         importlib.reload(converters.nwb_saving)

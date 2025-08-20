@@ -29,13 +29,16 @@ def add_intervals_container(nwb_file,csv_data_row) -> None:
     whisker_stim_amplitude = np.array([])
     whisker_stim_time = np.array([])
     whisker_stim_time_relative = np.array([])
-    reward_available = np.array([])
+    Reward_flag = np.array([])
+    Reward_time = np.array([])
     stim_type = np.array([])
     Sweep_IDs = np.array([])
     Sweep_Start_time = np.array([])
     Sweep_Stop_time = np.array([])
     trial_type = np.array([])
     lick_flag = np.array([])
+    reward_available = np.array([])
+    lick_threshold = np.array([])
 
     response_window = 2.0
 
@@ -52,9 +55,12 @@ def add_intervals_container(nwb_file,csv_data_row) -> None:
             trial_type = np.append(trial_type, One_sweep["Sweep Type"])
             whisker_stim_time = np.append(whisker_stim_time, One_trial["stim_time_abs"] if One_trial["has_stim"] else np.nan)
             whisker_stim_time_relative = np.append(whisker_stim_time_relative, One_trial["stim_time_rel_s"] if One_trial["has_stim"] else np.nan)
-            reward_available = np.append(reward_available, 1 if One_trial["reward"] else 0)
+            Reward_flag = np.append(Reward_flag, 1 if One_trial["reward"] else 0)
+            Reward_time = np.append(Reward_time, One_trial["reward_time"] if One_trial["reward"] else np.nan)
             lick_flag = np.append(lick_flag, 1 if One_trial["lick"] else 0)
+            lick_threshold = np.append(lick_threshold, One_sweep["lick"]["threshold"] if One_sweep["lick"]["threshold"] else np.nan)
             stim_type = np.append(stim_type, One_trial["type"])
+            reward_available = np.append(reward_available, 1 if csv_data_row["task"] == "WDT" else 0)
 
     trial_onsets = trial_onsets.astype(np.float64)
     whisker_stim = whisker_stim.astype(np.int64)
@@ -62,13 +68,17 @@ def add_intervals_container(nwb_file,csv_data_row) -> None:
     perf = perf.astype(np.int64)
     whisker_stim_time = whisker_stim_time.astype(np.float64)
     whisker_stim_time_relative = whisker_stim_time_relative.astype(np.float64)
-    reward_available = reward_available.astype(np.int64)
+    Reward_flag = Reward_flag.astype(np.int64)
+    Reward_time = Reward_time.astype(np.float64)
     Sweep_IDs = Sweep_IDs.astype(np.int64)
     Sweep_Start_time = Sweep_Start_time.astype(np.float64)
     trial_type = trial_type.astype(str)
     lick_flag = lick_flag.astype(np.int64)
+    lick_threshold = lick_threshold.astype(np.float64)
     Sweep_Stop_time = Sweep_Stop_time.astype(np.float64)
     stim_type = stim_type.astype(str)
+    reward_available = reward_available.astype(np.int64)
+
 
     # --- Define new trial columns ---
     new_columns = {
@@ -81,16 +91,18 @@ def add_intervals_container(nwb_file,csv_data_row) -> None:
         'perf': '0= whisker miss; 1= whisker hit ; 2= correct rejection ; 3= false alarm',
         "whisker_stim_amplitude": "Amplitude of the whisker stimulation between 0 and 5",
         "whisker_stim_duration": "Duration of the whisker stimulation (ms)",
-        "whisker_stim_time": "trial start time for whisker_stim=1 else NaN",
+        "whisker_stim_time": "Time of whisker stimulation (s) relative to the session start time",
         "whisker_stim_time_relative": "Relative time of the whisker stimulation (s) relative to the corresponding sweep start time",
         "no_stim" : "1 if no stimulus delivered, else 0",
         "no_stim_time": "trial start time for no_stim=1 (catch trial) else NaN",
-        "reward_available": "1 if reward is available, else 0",
+        "Reward_flag": "1 if reward else 0",
+        "reward_available": "1 if reward available, else 0",
+        "Reward_time": "Time of reward delivery (s) relative to the session start time",
         "response_window_start_time": "Start of response window",
         "response_window_stop_time": "Stop of response window",
         "lick_flag": "1 if lick detected, else 0",
-        "stim_type": "Type of stimulus presented",
-        #"lick_time": "Within response window lick time. Absolute time (s) relative to session start time"
+        "lick_threshold": "Threshold for lick detection",
+        "whisker_stim_type": "Type of stimulus presented",
     }
 
     # --- Add columns before inserting trials ---
@@ -118,14 +130,16 @@ def add_intervals_container(nwb_file,csv_data_row) -> None:
             whisker_stim_time=whisker_stim_time[i],
             whisker_stim_time_relative=whisker_stim_time_relative[i],
             whisker_stim_amplitude=whisker_stim_amplitude[i],
-            stim_type=stim_type[i] if not "n.a" else np.nan,
+            whisker_stim_type=stim_type[i] if not "n.a" else np.nan,
             whisker_stim_duration=str("1 (ms)"),
             no_stim= 1 if whisker_stim[i] == 0 else 0,
             no_stim_time= float(trial_onsets[i]) if whisker_stim[i] == 0 else np.nan,
-            reward_available=1 if reward_available[i] else 0,
+            Reward_flag=1 if Reward_flag[i] else 0,
+            Reward_time=Reward_time[i],
+            reward_available=reward_available[i],
             response_window_start_time=float(trial_onsets[i]) + 0.05,
             response_window_stop_time=float(trial_onsets[i]) + 1,
             lick_flag=lick_flag[i],
-            #lick_time=lick_time[i]
+            lick_threshold=lick_threshold[i],
         )
 
