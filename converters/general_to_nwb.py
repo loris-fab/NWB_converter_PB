@@ -4,6 +4,7 @@ import numpy as np
 import h5py
 
 
+
 def add_general_container(nwb_file, data, mat_file, regions):
     """
     Add general metadata including devices and extracellular electrophysiology to the NWB file.

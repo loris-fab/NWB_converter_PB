@@ -16,13 +16,9 @@ def add_behavior_container(nwb_file,csv_data_row):
    Args:
        nwb_file (pynwb.file.NWBFile): Target NWB file to which behavior data is added.
        csv_data_row (pandas.Series | Mapping): Row containing behavior data fields.
-       Rewarded (bool): if the mouse has a rewarded task.
        
     return: None
     """
-
-
-
     # --- Extract behavior data ---
 
     sweep_data = csv_data_row["sweeps"]
@@ -31,12 +27,13 @@ def add_behavior_container(nwb_file,csv_data_row):
     perf = np.array([])
     whisker_stim_amplitude = np.array([])
     whisker_stim_time = np.array([])
-    reward_available = np.array([])
+    reward_available =  1 if csv_data_row["task"] == "WDT" else 0
     Sweep_Start_time = np.array([])
     Sweep_Stop_time = np.array([])
     lick_flag = np.array([])
     reward_onset = np.array([])
     whisker_angle = list()
+    PiezoLickSignal = list()
     
 
 
@@ -44,13 +41,13 @@ def add_behavior_container(nwb_file,csv_data_row):
         Sweep_Start_time = np.append(Sweep_Start_time, One_sweep["Sweep Start Time"])
         Sweep_Stop_time = np.append(Sweep_Stop_time, One_sweep["Sweep Stop Time"])
         whisker_angle.append((One_sweep["whisker_angle"]["data"], One_sweep["Sweep Start Time"]))
+        PiezoLickSignal.append((One_sweep["lick"]["data"], One_sweep["Sweep Start Time"]))
         for One_trial in One_sweep["trials"]:
             trial_onsets = np.append(trial_onsets, One_trial["time_abs"])
             whisker_stim = np.append(whisker_stim, One_trial["has_stim"])
             whisker_stim_amplitude = np.append(whisker_stim_amplitude, One_trial["amplitude"])
             perf = np.append(perf, One_trial["response"])
             whisker_stim_time = np.append(whisker_stim_time, One_trial["stim_time_abs"] if One_trial["has_stim"] else np.nan)
-            reward_available = np.append(reward_available, 1 if One_trial["reward"] else 0)
             reward_onset = np.append(reward_onset, One_trial["reward_time"] if One_trial["reward"] else np.nan)
             lick_flag = np.append(lick_flag, 1 if One_trial["lick"] else 0)
 
@@ -59,7 +56,6 @@ def add_behavior_container(nwb_file,csv_data_row):
     whisker_stim_amplitude = whisker_stim_amplitude.astype(np.int64)
     perf = perf.astype(np.int64)
     whisker_stim_time = whisker_stim_time.astype(np.float64)
-    reward_available = reward_available.astype(np.int64)
     reward_onset = reward_onset.astype(np.float64)
     Sweep_Start_time = Sweep_Start_time.astype(np.float64)
     lick_flag = lick_flag.astype(np.int64)
@@ -109,11 +105,11 @@ def add_behavior_container(nwb_file,csv_data_row):
 
     ts_stim_flags = TimeSeries(
         name='StimFlags',
-        data=whisker_stim_amplitude[whisker_stim_amplitude > 0],
-        timestamps=whisker_stim_time[whisker_stim_time > 0],
-        unit='n.a.',
+        data=whisker_stim_amplitude,
+        timestamps=trial_onsets,
+        unit='code',
         description='Timestamps marking the amplitude of whisker stimulation for each trial',
-        comments='Whisker stimulation amplitudes are encoded as integers: 0 = no stimulus (Catch trial), 1 = deflection of the C2 whisker.',
+        comments='Whisker stimulation amplitudes are encoded as integers: 0 = no stimulus (Catch trial), 1 = deflection of the C2 whisker, and higher values indicate increasing stimulation amplitudes.',
         rate = None,
     )
     behavior_events.add_timeseries(ts_stim_flags)
@@ -182,17 +178,17 @@ def add_behavior_container(nwb_file,csv_data_row):
     )
     behavior_events.add_timeseries(ts_false_alarm)
 
-
-    # --- reward_onset ---
-    ts_reward_onset = TimeSeries(
-        name='reward_onset',
-        data=reward_available[reward_available > 0],
-        timestamps=reward_onset[reward_onset > 0],
-        unit='n.a.',
-        description = "Timestamps for reward-times",
-        comments = "time of each reward delivery event.",
-    )
-    behavior_events.add_timeseries(ts_reward_onset)
+    if reward_available:
+        # --- reward_onset ---
+        ts_reward_onset = TimeSeries(
+            name='reward_onset',
+            data=np.ones_like(reward_onset[reward_onset > 0]),
+            timestamps=reward_onset[reward_onset > 0],
+            unit='n.a.',
+            description = "Timestamps for reward-times",
+            comments = "time of each reward delivery event.",
+        )
+        behavior_events.add_timeseries(ts_reward_onset)
 
     # --- Sweep start time ---
     ts_sweep_start = TimeSeries(
@@ -225,34 +221,35 @@ def add_behavior_container(nwb_file,csv_data_row):
         bhv_module.add(bts)
 
 
-    all_data = []
-    all_timestamps = []
 
-    for data, sweep_start in whisker_angle:
-        if len(data) > 0:
-            data = np.array(data)
-            n_samples = len(data)
+    for index, i in enumerate([whisker_angle, PiezoLickSignal]):
+        all_data = []
+        all_timestamps = []
+        for data, sweep_start in i:
+            if len(data) > 0:
+                data = np.array(data)
+                n_samples = len(data)
+                sampling_rate = 200.0 if index == 0 else 20000.0
+                sweep_time = np.arange(n_samples) / sampling_rate + sweep_start
+                all_data.append(data)
+                all_timestamps.append(sweep_time)
+            elif len(data) == 0 or data is None:
+                continue
+        if len(all_data) == 0 or len(all_timestamps) == 0:
+            continue
+        all_data = np.concatenate(all_data)
+        all_timestamps = np.concatenate(all_timestamps)
+ 
 
-
-            sweep_time = np.arange(n_samples) / 200.0 + sweep_start
-
-            all_data.append(data)
-            all_timestamps.append(sweep_time)
-
-
-    all_data = np.concatenate(all_data)
-    all_timestamps = np.concatenate(all_timestamps)
-
-
-    whisker_ts = TimeSeries(
-        name="whisker_angle",
-        data=all_data,
-        unit='a.u.',    
-        timestamps=all_timestamps,
-        description = "Whisker angle trace across aligned video_onsets.",
-        comments = "the whisker angle is extracted from video filming using DeepLabCut 2.2b7 and is defined as the angle between the whisker shaft and the midline of the head."
-    )
-    bts.add_timeseries(whisker_ts)
+        whisker_ts = TimeSeries(
+            name="whisker_angle" if index == 0 else "piezo_lick_signal",
+            data=all_data,
+            unit='a.u' if index == 0 else 'V',
+            timestamps=all_timestamps,
+            description = "Whisker angle trace across aligned video_onsets." if index == 0 else "Lick signal over time (V, Sampling rate = 2000 Hz)",
+            comments = "the whisker angle is extracted from video filming using DeepLabCut 2.2b7 and is defined as the angle between the whisker shaft and the midline of the head." if index == 0 else "PiezoLickSignal is the continuous electrical signal recorded from the piezo film attached to the water spout to detect when the mouse contacts the water spout with its tongue."
+        )
+        bts.add_timeseries(whisker_ts)
 
 
     return None

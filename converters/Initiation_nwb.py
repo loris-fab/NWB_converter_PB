@@ -125,14 +125,25 @@ def files_to_config(subject_info,output_folder="data"):
     
 
     mouse = str(subject_info['Mouse Name'])
-    date = subject_info['Session Date (yyymmdd)']
     session_name = subject_info['Session']
 
 
     ###  Session metadata extraction  ###
 
+    ### behavioral type
+    behavior_type = str(subject_info.get("Behavior Type", "Unknown").strip())
+
     ### Experiment_description
-    #date_experience = pd.to_datetime(date, format='%Y%m%d')
+    Session_Type = subject_info.get("Session Type", "")
+    if pd.isna(Session_Type) or str(Session_Type).strip().lower() in ["", "nan"]:
+        Session_Type = "Naive"
+    if Session_Type == "Trained" or Session_Type == "D1":
+        Session_Type = int(1)
+        session_description = "ephys " + behavior_type + " mouse: the mouse was rewarded with a drop of water if it licked within 1 s following a whisker stimulus (go trials) but not in the absence of the stimulus (no-go trials). Membrane potential recording was performed in the medial prefrontal cortex using patch-clamp whole-cell recording with glass pipette (4-7 MOhms). WDT session = " + str(subject_info['counter'])
+    elif Session_Type == "Naive" :
+        Session_Type = int(0)
+        session_description = "ephys " + behavior_type + " mouse: the mouse was habituated to sit still while head-restrained. Membrane potential recording was performed in the medial prefrontal cortex using patch-clamp whole-cell recording with glass pipette (4-7 MOhms) while single-whisker stimuli were delivered at random times."
+
 
     ref_weight = subject_info.get("Weight of Reference", "")
     if pd.isna(ref_weight) or str(ref_weight).strip().lower() in ["", "nan"]:
@@ -143,11 +154,18 @@ def files_to_config(subject_info,output_folder="data"):
         except Exception:
             ref_weight = 'na'
 
+
     experiment_description = {
-    #'reference_weight': ref_weight,
-    #'wh_reward': ?,
+    'reference_weight': ref_weight,
+    "session_type": "ephys_session",
+    "behavior type": behavior_type,
+    'wh_reward': 1 if Session_Type == 1 else 0,
     #'aud_reward': ?,
-    #'reward_proba': ?,
+    'reward_proba': 1 if Session_Type == 1 else 0,
+    'wh_stim_amps': '0=0 deg, 1=1 deg, 2=1.8 deg, 3=2.5 deg and 4=3.3 deg',
+    "Behavioral Task": str(subject_info.get("task", "")),
+    "Session_type": str(subject_info.get("Session Type", "")),
+    "Session Number" : str(subject_info['counter']),
     #'lick_threshold': ?,
     #'no_stim_weight': ?,
     #'wh_stim_weight': ?,
@@ -158,9 +176,10 @@ def files_to_config(subject_info,output_folder="data"):
     #'each_video_duration': ?,
     #'camera_start_delay': ?,
     #'artifact_window': ?,
-    'licence': str(subject_info.get("licence", "")).strip() + " (All procedures were approved by the Swiss Federal Veterinary Office)",
-    #'ear tag': str(subject_info.get("Ear tag", "")).strip(),
+    'licence': str(subject_info.get("licence", "")).strip(),
+    'ear tag': str(subject_info.get("Ear tag", "")).strip(),
     #"Software and Algorithms": "?",
+    'Ambient noise': '80 dB',
     }
     ### Experimenter
     experimenter = subject_info["User (user_userName)"]
@@ -168,7 +187,7 @@ def files_to_config(subject_info,output_folder="data"):
     ### Session_id, identifier, institution, keywords
     session_id = subject_info["Session"].strip() 
     identifier = session_id + "_" + str(subject_info["Start Time (hhmmss)"])
-    keywords = ["neurophysiology", "behaviour", "mouse", "electrophysiology", "patch clamp"] 
+    keywords = ["neurophysiology", "behaviour", "mouse", "electrophysiology", "patch-clamp"] 
 
     ### Session start time
     session_start_time = str(subject_info["Session Date (yyymmdd)"])+" " + str(subject_info["Start Time (hhmmss)"])
@@ -180,10 +199,12 @@ def files_to_config(subject_info,output_folder="data"):
         birth_date = pd.to_datetime(subject_info["Birth date"], dayfirst=True).strftime('%m/%d/%Y')
     else:
         birth_date = 'na'
+
     age = subject_info["Mouse Age (d)"] 
     if age == "Unknown":
         age = 'na'
-    #age = f"P{age}D"
+    else:
+        age = f"P{age}D"
 
 
     ### Genotype 
@@ -206,22 +227,6 @@ def files_to_config(subject_info,output_folder="data"):
     ### Behavioral metadata extraction 
     camera_flag = 1
 
-    ### behavioral type
-    behavior_type = str(subject_info.get("Behavior Type", "Unknown").strip())
-
-    """
-    if behavior_type == "Detection Task":
-        session_description = "ephys " + behavior_type + ": For the detection task, trials with whisker stimulation (Stimulus trials) or those without whisker stimulation (Catch trials) were started without any preceding cues, at random inter-trial intervals ranging from 6 to 12 s. Catch trials were randomly interleaved with Stimulus trials, with 50% probability of all trials. If the mouse licked in the 3-4 s no-lick window preceding the time when the trial was supposed to occur, then the trial was aborted. Catch trials were present from the first day of training. Mice were rewarded only if they licked the water spout within a 1 s response window following the whisker stimulation (Hit)."
-        stimulus_notes = "Whisker stimulation was applied to the C2 region to evoke sensory responses."
-
-    elif behavior_type == "Neutral Exposition":
-        session_description = "ephys " + behavior_type + ": For the neutral exposure task, mice were trained to collect the reward by licking the water spout with an intertrial interval ranging from 6 to 12 s and after a no-lick period of 3-4 s, similar to the detection task. At random times the same 1 ms whisker stimulus was delivered to the C2 whisker with an inter stimulus interval ranging from 6 to 12 s and a probability of 50%. The whisker stimulus was not correlated to the delivery of the reward, therefore, no association between the stimulus and the delivery of the reward could be made. In this behavioral paradigm, mice were exposed to the whisker stimulus during 7-10 days."
-        stimulus_notes = "Whisker stimulation was applied to the C2 region to evoke sensory responses."
-
-    else:
-        raise ValueError(f"Unknown behavior type: {behavior_type}")
-    """
-
     # Construct the output YAML path
     config = {
         'session_metadata': {
@@ -231,11 +236,11 @@ def files_to_config(subject_info,output_folder="data"):
             'institution': "Ecole Polytechnique Federale de Lausanne",
             'keywords': keywords,
             'lab' : "Laboratory of Sensory Processing",
-            'notes': 'na',
+            'notes': "Single-neuron membrane potential recording in the medial prefrontal cortex of awake behaving mice.",
             'pharmacology': 'na',
             'protocol': 'na',
             'related_publications': related_publications,
-            'session_description': "ephys " + behavior_type,
+            'session_description': session_description ,
             'session_id': session_id,
             'session_start_time': session_start_time,
             'slices': "na", 
@@ -298,13 +303,15 @@ def files_to_dataframe(mat_file, choice_mouses,dataframe_subject):
         'Weight Session', "task", "counter"]
     csv_data = pd.DataFrame(columns=columns)
     csv_data.columns = csv_data.columns.str.strip()
-
+    ##dataframe_subject.columns = dataframe_subject.columns.str.strip()
+    #print(dataframe_subject.columns)
 
     def reward_in_trial(
         reward_times: List[datetime],
         trial_start: datetime,
         trial_stop: datetime,
-        has_reward: bool
+        has_reward: bool,
+        start_time: datetime
     ) -> Optional[datetime]:
         """
         Return the reward datetime if it falls within [trial_start, trial_stop].
@@ -322,8 +329,8 @@ def files_to_dataframe(mat_file, choice_mouses,dataframe_subject):
 
         Returns
         -------
-        datetime or None
-            The reward datetime if exactly one is found, None if has_reward=False.
+        float | None
+            The reward time in seconds if exactly one is found, None if has_reward=False.
 
         Raises
         ------
@@ -338,8 +345,8 @@ def files_to_dataframe(mat_file, choice_mouses,dataframe_subject):
         hits = [t for t in reward_times if trial_start <= t <= trial_stop]
 
         if len(hits) == 1:
-            return hits[0]
-        if len(hits) == 0:
+            return (hits[0]-start_time).total_seconds()
+        elif len(hits) == 0 or len(hits) > 1:
             raise ValueError("Inconsistency: has_reward=True but no reward in interval.")
         raise ValueError(f"Inconsistency: multiple rewards in interval: {hits}")
 
@@ -486,7 +493,10 @@ def files_to_dataframe(mat_file, choice_mouses,dataframe_subject):
             #birth_dates    = read_birth_dates(f, 'Data_Full/Mouse_DateOfBirth')
             Mouse_Sex      = read_cell_strings(f, 'Data_Full/Mouse_Sex')
             sessiontypes   = read_cell_strings(f, 'Data_Full/Session_Type')
-            behaviortypes  = read_cell_strings(f, 'Data_Full/Sweep_Type')
+            Sweep_type  = read_cell_strings(f, 'Data_Full/Sweep_Type')
+            Cell_Depth = np.array(f['Data_Full/Cell_Depth'][()]).squeeze()
+
+            
 
             # Step 1: Mouse metadata loaded
             time.sleep(1)
@@ -587,19 +597,14 @@ def files_to_dataframe(mat_file, choice_mouses,dataframe_subject):
     for one_cell in tqdm(cell, total=len(index_mouses_choices1), desc="Creating a unified DataFrame : Adding Mouses Cells ..."):
         if one_cell[0] in index_mouses_choices:
             name = mouses_name[one_cell[0]]
-            #birth_date = birth_dates[one_cell[0]]
             sex = Mouse_Sex[one_cell[0]]
             session_type = sessiontypes[one_cell[0]]
-            behaviortype = " & ".join(np.unique(behaviortypes[one_cell]))
-            start_date = sweep_start_times[one_cell[0]].strftime("%d.%m.%y") if not pd.isnull(sweep_start_times[one_cell[0]]) else None
-            session_date = sweep_start_times[one_cell[0]].strftime("%Y%m%d") if not pd.isnull(sweep_start_times[one_cell[0]]) else None
+            #behaviortype = " & ".join(np.unique(Sweep_type[one_cell]))
+            if session_type not in ["Trained", "D1", "Naive"]:
+                raise ValueError(f"Unknown session type: {session_type}. Expected 'Trained', 'D1', or 'Naive'.") 
+            behaviortype = "Whisker rewarded (WR+)" if (session_type == "Trained" or session_type == "D1") else "No Task"  
             start_time_hhmmss = sweep_start_times[one_cell[0]].strftime("%H%M%S") if not pd.isnull(sweep_start_times[one_cell[0]]) else None
-    
             start_time = sweep_start_times[one_cell[0]] if not pd.isnull(sweep_start_times[one_cell[0]]) else None
-
-            end_date = sweep_start_times[one_cell[-1]].strftime("%d.%m.%y") if not pd.isnull(sweep_start_times[one_cell[-1]]) else None
-
-
 
             row = dataframe_subject[dataframe_subject['Mouse Name'] == name]
             date_str = str(row['Birth date'].iloc[0]).strip() 
@@ -613,6 +618,14 @@ def files_to_dataframe(mat_file, choice_mouses,dataframe_subject):
             user = str(row['User (user_userName)'].iloc[0]).strip()
             task = str(row['Behavioral task'].iloc[0]).strip()
             counter = int(row['Session Number'].iloc[0])
+            start_date = str(row['Start date'].iloc[0]).strip()
+            start_date = start_date.replace("/", ".")
+            end_date = str(row['End date'].iloc[0]).strip()
+            end_date = end_date.replace("/", ".")
+            age = (datetime.strptime(start_date, "%d.%m.%Y") - datetime.strptime(birth_date, "%d.%m.%Y")).days
+
+
+            session_date = start_date.replace(".", "")[4:] + end_date.replace(".", "")[2:4] + end_date.replace(".", "")[0:2]
 
             sweeps = []
             for one_sweep in one_cell:
@@ -675,7 +688,7 @@ def files_to_dataframe(mat_file, choice_mouses,dataframe_subject):
                             "time_abs": (ts_abs[k]- start_time).total_seconds(),
                             "lick": bool(lick[k]),
                             "reward": bool(reward_b[k]),
-                            "reward_time": reward_in_trial(reward_abs, ts_abs[k], ts_abs[k] + timedelta(seconds=2), bool(reward_b[k])),
+                            "reward_time": reward_in_trial(reward_abs, ts_abs[k], ts_abs[k] + timedelta(seconds=2), bool(reward_b[k]),start_time),
                             "response": int(response[k]),
                             'has_stim': bool(has_stim[k]),
                             'amplitude': 0,
@@ -689,7 +702,7 @@ def files_to_dataframe(mat_file, choice_mouses,dataframe_subject):
                             "time_abs": (ts_abs[k]- start_time).total_seconds(),
                             "lick": bool(lick[k]),
                             "reward": bool(reward_b[k]),
-                            "reward_time": reward_in_trial(reward_abs, ts_abs[k], ts_abs[k] + timedelta(seconds=2), bool(reward_b[k])),
+                            "reward_time": reward_in_trial(reward_abs, ts_abs[k], ts_abs[k] + timedelta(seconds=2), bool(reward_b[k]), start_time),
                             "response": int(response[k]),
                             'has_stim': bool(has_stim[k]),
                             'stim_time_rel_s': stim_on[ind_stim] ,
@@ -710,7 +723,7 @@ def files_to_dataframe(mat_file, choice_mouses,dataframe_subject):
                     "Sweep Index": int(one_sweep),
                     "Sweep Start Time": ((t0) - start_time).total_seconds(),
                     "Sweep Stop Time": ((t0 + timedelta(seconds=float(dur_vm))) - start_time).total_seconds(),
-                    "Sweep Type": str(behaviortypes[one_sweep]),
+                    "Sweep Type": str(Sweep_type[one_sweep]),
                     #'behav': behav,
 
                     # Signaux
@@ -718,7 +731,11 @@ def files_to_dataframe(mat_file, choice_mouses,dataframe_subject):
                         "sampling_rate_Hz": int(sr_vm_cm),
                         #"n_samples": int(vm.size),
                         #"duration_s": dur_vm,
-                        "data": vm.tolist() if vm.size>0 else []
+                        "data": vm.tolist() if vm.size>0 else [],
+                        "target area": "mPFC",
+                        "Type of neurone": "NaN",
+                        "Cell_ID" : Cell_ID[one_cell[0]],
+                        "Cell_Depth (um)": Cell_Depth[one_sweep]
                     },
                     "current_monitor": {
                         "sampling_rate_Hz": int(sr_vm_cm),
@@ -784,7 +801,7 @@ def files_to_dataframe(mat_file, choice_mouses,dataframe_subject):
                 "Session Type": session_type,
                 "task": task,
                 "sweeps": sweeps,
-                "Mouse Age (d)": "unknown",
+                "Mouse Age (d)": age,
                 "Weight of Reference": ref_weight,
                 "Weight Session": Weight_Session 
             }

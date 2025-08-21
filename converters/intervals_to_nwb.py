@@ -37,9 +37,8 @@ def add_intervals_container(nwb_file,csv_data_row) -> None:
     Sweep_Stop_time = np.array([])
     trial_type = np.array([])
     lick_flag = np.array([])
-    reward_available = np.array([])
     lick_threshold = np.array([])
-
+    reward_available =  1 if csv_data_row["task"] == "WDT" else 0
     response_window = 2.0
 
     for One_sweep in sweep_data:
@@ -58,11 +57,11 @@ def add_intervals_container(nwb_file,csv_data_row) -> None:
             Reward_flag = np.append(Reward_flag, 1 if One_trial["reward"] else 0)
             Reward_time = np.append(Reward_time, One_trial["reward_time"] if One_trial["reward"] else np.nan)
             lick_flag = np.append(lick_flag, 1 if One_trial["lick"] else 0)
-            lick_threshold = np.append(lick_threshold, One_sweep["lick"]["threshold"] if One_sweep["lick"]["threshold"] else np.nan)
-            stim_type = np.append(stim_type, One_trial["type"])
-            reward_available = np.append(reward_available, 1 if csv_data_row["task"] == "WDT" else 0)
+            lick_threshold = np.append(lick_threshold, One_sweep["lick"]["threshold"] if One_sweep.get("lick", {}).get("threshold", None) is not None else np.nan)
+            stim_type = np.append(stim_type, One_trial["type"] if One_trial["type"] != "n.a" else np.nan)
 
     trial_onsets = trial_onsets.astype(np.float64)
+    trial_onsets_relative = trial_onsets_relative.astype(np.float64)
     whisker_stim = whisker_stim.astype(np.int64)
     whisker_stim_amplitude = whisker_stim_amplitude.astype(np.int64)
     perf = perf.astype(np.int64)
@@ -77,7 +76,6 @@ def add_intervals_container(nwb_file,csv_data_row) -> None:
     lick_threshold = lick_threshold.astype(np.float64)
     Sweep_Stop_time = Sweep_Stop_time.astype(np.float64)
     stim_type = stim_type.astype(str)
-    reward_available = reward_available.astype(np.int64)
 
 
     # --- Define new trial columns ---
@@ -107,13 +105,8 @@ def add_intervals_container(nwb_file,csv_data_row) -> None:
 
     # --- Add columns before inserting trials ---
     for col, desc in new_columns.items():
+        if (nwb_file.trials is None) or (col not in nwb_file.trials.colnames):
             nwb_file.add_trial_column(name=col, description=desc)
-
-    else:
-        # Add only missing columns if table already exists
-        for col, desc in new_columns.items():
-            if col not in nwb_file.trials.colnames:
-                nwb_file.add_trial_column(name=col, description=desc)
 
     # --- Add trials ---
     for i in range(len(trial_onsets)):
@@ -130,13 +123,13 @@ def add_intervals_container(nwb_file,csv_data_row) -> None:
             whisker_stim_time=whisker_stim_time[i],
             whisker_stim_time_relative=whisker_stim_time_relative[i],
             whisker_stim_amplitude=whisker_stim_amplitude[i],
-            whisker_stim_type=stim_type[i] if not "n.a" else np.nan,
+            whisker_stim_type=stim_type[i],
             whisker_stim_duration=str("1 (ms)"),
             no_stim= 1 if whisker_stim[i] == 0 else 0,
             no_stim_time= float(trial_onsets[i]) if whisker_stim[i] == 0 else np.nan,
             Reward_flag=1 if Reward_flag[i] else 0,
             Reward_time=Reward_time[i],
-            reward_available=reward_available[i],
+            reward_available=reward_available,
             response_window_start_time=float(trial_onsets[i]) + 0.05,
             response_window_stop_time=float(trial_onsets[i]) + 1,
             lick_flag=lick_flag[i],
