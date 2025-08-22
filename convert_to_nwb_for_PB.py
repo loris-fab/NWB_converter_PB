@@ -58,7 +58,7 @@ def convert_data_to_nwb_PB(input_folder, output_folder, mouses_name = None):
     print("Converting data to NWB format for mouse:", list(csv_data["Cell_ID"]))
     failures = []  # (mouse_name, row_idx, err_msg)
 
-    bar = tqdm(total=len(csv_data), desc="Processing ")
+    bar = tqdm(total=csv_data["Cell_ID"].nunique(), desc="Processing ")
     for cell_id in csv_data["Cell_ID"].unique():
         csv_data_row = csv_data[csv_data["Cell_ID"] == cell_id].iloc[0]
         bar.set_postfix_str(str(csv_data_row["Mouse Name"])) 
