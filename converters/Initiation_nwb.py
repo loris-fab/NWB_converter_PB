@@ -157,14 +157,12 @@ def files_to_config(subject_info,output_folder="data"):
 
     experiment_description = {
     'reference_weight': ref_weight,
-    "session_type": "ephys_session",
-    "behavior type": behavior_type,
+    "session_type": "ephys_session " + str(subject_info.get("Session Type", "")),
+    "behavior Task": behavior_type,
     'wh_reward': 1 if Session_Type == 1 else 0,
     #'aud_reward': ?,
     'reward_proba': 1 if Session_Type == 1 else 0,
-    'wh_stim_amps': '0=0 deg, 1=1 deg, 2=1.8 deg, 3=2.5 deg and 4=3.3 deg',
-    "Behavioral Task": str(subject_info.get("task", "")),
-    "Session_type": str(subject_info.get("Session Type", "")),
+    'wh_stim_amps': '5',
     "Session Number" : str(subject_info['counter']),
     #'lick_threshold': ?,
     #'no_stim_weight': ?,
@@ -667,6 +665,8 @@ def files_to_dataframe(mat_file, choice_mouses,dataframe_subject):
 
                     if len(stim_type) != 0: # if not Free Whisking
                         stim_on = safe_list(stim_on)
+                        #print(stim_on)
+                        #print(has_stim[has_stim > 0])
                         stim_on_abs = stim_on_abs
                         stim_amp = safe_list(stim_amp)
                         stim_dur = safe_list(stim_dur)

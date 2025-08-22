@@ -21,6 +21,8 @@ def add_intervals_container(nwb_file,csv_data_row) -> None:
         None
 
     """
+    Session_Type = str(csv_data_row.get("Session Type", ""))
+    Session_Number = str(csv_data_row['counter'])
     sweep_data = csv_data_row["sweeps"]
     trial_onsets = np.array([])
     trial_onsets_relative = np.array([])
@@ -101,6 +103,8 @@ def add_intervals_container(nwb_file,csv_data_row) -> None:
         "lick_flag": "1 if lick detected, else 0",
         "lick_threshold": "Threshold for lick detection",
         "whisker_stim_type": "Type of stimulus presented",
+        "Session_Type": "Type of session (e.g. trained, D1, Naive)",
+        "Session_Number": "Unique identifier for each session",
     }
 
     # --- Add columns before inserting trials ---
@@ -134,5 +138,7 @@ def add_intervals_container(nwb_file,csv_data_row) -> None:
             response_window_stop_time=float(trial_onsets[i]) + 1,
             lick_flag=lick_flag[i],
             lick_threshold=lick_threshold[i],
+            Session_Type=Session_Type,
+            Session_Number=Session_Number,
         )
 
