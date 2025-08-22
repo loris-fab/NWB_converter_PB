@@ -57,14 +57,16 @@ def convert_data_to_nwb_PB(input_folder, output_folder, mouses_name = None):
 
     print("Converting data to NWB format for mouse:", list(csv_data["Cell_ID"]))
     failures = []  # (mouse_name, row_idx, err_msg)
+
     bar = tqdm(total=len(csv_data), desc="Processing ")
-    for _, csv_data_row in csv_data.iterrows():
+    for cell_id in csv_data["Cell_ID"].unique():
+        csv_data_row = csv_data[csv_data["Cell_ID"] == cell_id].iloc[0]
         bar.set_postfix_str(str(csv_data_row["Mouse Name"])) 
         bar.update(1)
         try:
             # Creating configs for NWB conversion
             importlib.reload(converters.Initiation_nwb)
-            output_path, _ = converters.Initiation_nwb.files_to_config(subject_info=csv_data_row.drop("sweeps"), output_folder=output_folder)  #same for all sessions
+            output_path, _ = converters.Initiation_nwb.files_to_config(subject_info=csv_data_row, output_folder=output_folder)  #same for all sessions
 
             # 📑 Created NWB files
             importlib.reload(converters.general_to_nwb)
@@ -101,6 +103,7 @@ def convert_data_to_nwb_PB(input_folder, output_folder, mouses_name = None):
             # Delete .yaml config file 
             if os.path.exists(output_path):
                 os.remove(output_path)
+            del csv_data_row
             gc.collect()
             
         except Exception as e:
