@@ -47,21 +47,43 @@ Follow the environment setup instructions provided in [LSENS-Lab-Immersion repos
 
 ## 🧩 How to use
 
-Run the following command in the terminal, replacing `output_folder` with the directory where you want the NWB file to be saved.
+Run the following command in the terminal, replacing:
+
+* `input_folder` with the directory containing the `.mat` file "mPFC_Preprocessed",
+* `output_folder` with the directory where you want the NWB files to be saved.
+
 `--mouses_name` lets you specify one or more mouse names to process, separated by spaces (e.g., `--mouses_name LB010 LB011`).
 
 ```bash
-python convert_data_to_nwb_PB.py output_folder --mouses_name LB010 LB011 (...)
+python convert_data_to_nwb_PB.py input_folder output_folder --mouses_name LB010 LB011 (...)
 ```
+### *Options:*
 
-*Options:*
-* `--mouses_name` : Name of the mouse/session to convert (default: all sessions)
+* `--mouses_name` : One or more mouse/session names to convert (default: all sessions)
+
+for exemple in window:
+```bash
+python convert_to_nwb_for_PB.py \
+"//sv-nas1.rcp.epfl.ch/Petersen-Lab/analysis/Sylvain_Crochet/DATA_REPOSITORY/Banterle_mPFC_Vm_2019/mPFC_Preprocessed.mat" \
+"//sv-nas1.rcp.epfl.ch/Petersen-Lab/z_LSENS/Share/Loris_Fabbro/LB/NWB_files" \
+--mouses_name LB010
+```
 
 If everything runs correctly, you should see an output similar to this:
 
 ```bash
 **************************************************************************
-                  
+-_-_-_-_-_-_-_-_-_-_-_-_-_-_- NWB conversion _-_-_-_-_-_-_-_-_-_-_-_-_-_-_
+📥 Collecting data from .mat file: \\sv-nas1.rcp.epfl.ch\Petersen-Lab\analysis\Sylvain_Crochet\DATA_REPOSITORY\Banterle_mPFC_Vm_2019\mPFC_Preprocessed.mat
+ 20%|██        | 1/5 [00:01<00:06,  1.63s/it]Loading mouse metadata ...
+ 40%|████      | 2/5 [00:02<00:03,  1.32s/it]Loading sweep signal data (1/3) ...
+ 60%|██████    | 3/5 [02:02<01:51, 55.61s/it]Loading sweep signal data (2/3) ...
+ 80%|████████  | 4/5 [02:04<00:34, 34.39s/it]Loading sweep signal data (3/3) ...
+100%|██████████| 5/5 [02:05<00:00, 25.19s/it]
+Loading sweep behavior data ...
+Creating a unified DataFrame : Adding Mouses Cells ...: 66it [00:00, 80.96it/s]                      
+Converting data to NWB format for mouse: ['LB010_S1_R1', 'LB010_S1_R3']
+Processing : 100%|██████████| 2/2 [00:09<00:00,  4.87s/it, LB010]
 **************************************************************************
 ```
 
@@ -71,4 +93,6 @@ Project developed as part of a student project focused on organizing and convert
 Main code by **@loris-fab**
 
 For any questions related to the code, please contact: [loris.fabbro@epfl.ch](mailto:loris.fabbro@epfl.ch)
+
+
 
