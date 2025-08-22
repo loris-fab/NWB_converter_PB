@@ -162,7 +162,7 @@ def files_to_config(subject_info,output_folder="data"):
     'wh_reward': 1 if Session_Type == 1 else 0,
     #'aud_reward': ?,
     'reward_proba': 1 if Session_Type == 1 else 0,
-    'wh_stim_amps': '5',
+    'wh_stim_amps': '[0:5]',
     "Session Number" : str(subject_info['counter']),
     #'lick_threshold': ?,
     #'no_stim_weight': ?,
@@ -180,7 +180,7 @@ def files_to_config(subject_info,output_folder="data"):
     'Ambient noise': '80 dB',
     }
     ### Experimenter
-    experimenter = subject_info["User (user_userName)"]
+    experimenter = "Lila Banterle"
    
     ### Session_id, identifier, institution, keywords
     session_id = subject_info["Session"].strip() 
@@ -293,7 +293,7 @@ def files_to_dataframe(mat_file, choice_mouses,dataframe_subject):
             - Spike, reward, and trial information.
     """
 
-    columns = ['Mouse Name', 'User (user_userName)', 'Cell_ID', 'Ear tag',
+    columns = ['Mouse Name', 'Cell_ID', 'Ear tag',
         'Start date (dd.mm.yy)', 'End date', 'Sex_bin', 'strain', 'mutations',
         'Birth date', 'licence', 'DG', 'ExpEnd', 'Created on', 'Session',
         'Session Date (yyymmdd)', 'Start Time (hhmmss)', 'Behavior Type',
@@ -613,7 +613,6 @@ def files_to_dataframe(mat_file, choice_mouses,dataframe_subject):
             ref_weight = float(row['Weight of Refence'].iloc[0]) 
             Ear_tag = str(row['Ear tag'].iloc[0]).strip()
             Created_on = str(row['Created on'].iloc[0]).strip()
-            user = str(row['User (user_userName)'].iloc[0]).strip()
             task = str(row['Behavioral task'].iloc[0]).strip()
             counter = int(row['Session Number'].iloc[0])
             start_date = str(row['Start date'].iloc[0]).strip()
@@ -720,7 +719,7 @@ def files_to_dataframe(mat_file, choice_mouses,dataframe_subject):
                     raise ValueError(f"Stimulus index mismatch: {ind_stim} vs {len(stim_type)-1} for sweep {one_sweep} and mouse {name}")
 
                 sweep_dict = {
-                    "Sweep Index": int(one_sweep),
+                    "Sweep Index": int(one_sweep)-int(one_cell[0]),
                     "Sweep Start Time": ((t0) - start_time).total_seconds(),
                     "Sweep Stop Time": ((t0 + timedelta(seconds=float(dur_vm))) - start_time).total_seconds(),
                     "Sweep Type": str(Sweep_type[one_sweep]),
@@ -780,7 +779,6 @@ def files_to_dataframe(mat_file, choice_mouses,dataframe_subject):
             # Create a new row for the session
             new_row = {
                 "Mouse Name": name,
-                "User (user_userName)": user,
                 "Cell_ID": Cell_ID[one_cell[0]],
                 "Ear tag": Ear_tag,
                 "Start date (dd.mm.yy)": start_date,

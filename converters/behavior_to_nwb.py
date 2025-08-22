@@ -246,8 +246,8 @@ def add_behavior_container(nwb_file,csv_data_row):
             data=all_data,
             unit='a.u' if index == 0 else 'V',
             timestamps=all_timestamps,
-            description = "Whisker angle trace across aligned video_onsets." if index == 0 else "Lick signal over time (V, Sampling rate = 2000 Hz)",
-            comments = "the whisker angle is extracted from video filming using DeepLabCut 2.2b7 and is defined as the angle between the whisker shaft and the midline of the head." if index == 0 else "PiezoLickSignal is the continuous electrical signal recorded from the piezo film attached to the water spout to detect when the mouse contacts the water spout with its tongue."
+            description = "Whisker angle trace across aligned video_onsets." if index == 0 else "Lick signal over time (V, Sampling rate = 20 000 Hz)",
+            comments = "the whisker angle is defined as the angle between the whisker shaft and the midline of the head." if index == 0 else "PiezoLickSignal is the continuous electrical signal recorded from the piezo film attached to the water spout to detect when the mouse contacts the water spout with its tongue."
         )
         bts.add_timeseries(whisker_ts)
 
