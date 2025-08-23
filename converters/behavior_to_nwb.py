@@ -1,8 +1,6 @@
-import numpy as np
-from pynwb.base import TimeSeries
 from pynwb.behavior import BehavioralEvents, BehavioralTimeSeries
-from pynwb import TimeSeries
-import pandas as pd
+from pynwb.base import TimeSeries
+import numpy as np
 
 
 ################################################################
