@@ -1,9 +1,7 @@
-import os
-from datetime import datetime
-import gc
-gc.collect()
-
 from pynwb import NWBHDF5IO
+import os
+import gc
+
 
 
 def save_nwb_file(nwb_file, output_folder):
@@ -19,8 +17,6 @@ def save_nwb_file(nwb_file, output_folder):
 
     with NWBHDF5IO(os.path.join(output_folder, nwb_name), 'w') as io:
         io.write(nwb_file)
-
-    #print("NWB file created at :\n " + str(os.path.join(output_folder, nwb_name)))
-
     gc.collect()
+
     return str(os.path.join(output_folder, nwb_name))

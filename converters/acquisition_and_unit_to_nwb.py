@@ -1,17 +1,27 @@
-from typing import Dict, Any, List
-import numpy as np
-from pynwb import NWBFile
 from pynwb.icephys import CurrentClampSeries, CurrentClampStimulusSeries
+from typing import Dict, Any, List
+from pynwb import NWBFile
+import numpy as np
 
 
-def add_to_nwb_acquisition_and_units_containers(nwb_file: NWBFile, csv_data_row: Dict[str, Any]):
+def add_to_nwb_acquisition_and_units_containers(nwb_file, csv_data_row):
     """
     Add sweeps from a single cell into an NWB file.
     Each sweep is added as an intracellular recording, then grouped into
     a SimultaneousRecording (best practice minimal level for NWB).
+
+    parameters
+    ----------
+    nwb_file : NWBFile
+        The NWB file to which the data will be added.
+    csv_data_row : dict
+        A dictionary containing the data for a single cell.
+    Returns
+    -------
+    None
     """
 
-    # Helpers
+    # ------------------------ helpers -------------------------------
     def _clean(val):
         if val is None:
             return None
@@ -36,8 +46,9 @@ def add_to_nwb_acquisition_and_units_containers(nwb_file: NWBFile, csv_data_row:
         if val is None:
             return np.nan if as_float else ""
         return float(val) if as_float else val
+    # ---------------------------------------------------------------
 
-    # 1) Devices (created once if missing)
+    # Devices (created once if missing)
     devices_info = {
         "Amplifier Vm": "Differential extracellular amplifier for membrane potential recording – Multiclamp 700B (Molecular Devices).",
         "Digitizer": "Wavesurfer (https://wavesurfer.janelia.org/) + National Instrument cards (https://www.ni.com).",
@@ -49,7 +60,7 @@ def add_to_nwb_acquisition_and_units_containers(nwb_file: NWBFile, csv_data_row:
         if name not in nwb_file.devices:
             nwb_file.create_device(name=name, description=desc)
 
-    # 2) Cell metadata 
+    # Cell metadata 
     sweeps = csv_data_row.get("sweeps", [])
     if len(sweeps) == 0:
         raise ValueError("No sweeps found in csv_data_row. Cannot proceed with NWB conversion.")
@@ -60,7 +71,7 @@ def add_to_nwb_acquisition_and_units_containers(nwb_file: NWBFile, csv_data_row:
     neuron_type = mp0.get("Type of neurone")
     depth_um = _clean(mp0.get("Cell_Depth (um)"))
 
-    # Create electrode
+    ## Create electrode
     elec_name = f"elec_{cell_id}"
     if elec_name in nwb_file.icephys_electrodes:
         electrode = nwb_file.icephys_electrodes[elec_name]
@@ -73,7 +84,7 @@ def add_to_nwb_acquisition_and_units_containers(nwb_file: NWBFile, csv_data_row:
             filtering="Bevel filter 10 kHz; DC current-clamp",
         )
 
-    # 3) Add sweeps 
+    # Add sweeps 
     spike_times_all: List[float] = []
 
     for idx, sweep in enumerate(sweeps):
@@ -132,7 +143,7 @@ def add_to_nwb_acquisition_and_units_containers(nwb_file: NWBFile, csv_data_row:
         if abs_spikes:
             spike_times_all.extend([float(t) for t in abs_spikes])
 
-    # 4) Add spikes to nwb.units 
+    # Add spikes to nwb.units 
     if spike_times_all:
         _ensure_units_columns(nwb_file)
         nwb_file.add_unit(

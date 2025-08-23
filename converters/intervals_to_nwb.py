@@ -1,26 +1,24 @@
 
-
-import numpy as np
-import h5py
 from pynwb.epoch import TimeIntervals   
+import numpy as np
 
 ###############################################################
-# Functions for converting intervals to NWB format for AN sessions
+# Functions for converting intervals to NWB format 
 ###############################################################
 
 def add_intervals_container(nwb_file,csv_data_row) -> None:
     """
-    Populate `nwb_file.trials` from one CSV-like row by parsing trial-level fields
-    and adding one NWB trial per entry.
+    Populate `nwb_file.trials` from one pandas row.
 
     Args:
         nwb_file (pynwb.file.NWBFile): Target NWB file to which trials are added.
-        csv_data_row (pandas.Series | Mapping): Row containing trial data.
-        
+        csv_data_row (pandas.Series): Row containing trial data.
+
     Returns:
         None
-
     """
+
+    # Extract trial information from csv_data_row
     Session_Type = str(csv_data_row.get("Session Type", ""))
     Session_Number = str(csv_data_row['counter'])
     sweep_data = csv_data_row["sweeps"]
@@ -43,6 +41,7 @@ def add_intervals_container(nwb_file,csv_data_row) -> None:
     reward_available =  1 if csv_data_row["task"] == "WDT" else 0
     response_window = 2.0
 
+    # each sweep is a dictionary that contains trial information
     for One_sweep in sweep_data:
         for One_trial in One_sweep["trials"]:
             trial_onsets = np.append(trial_onsets, One_trial["time_abs"])
@@ -62,6 +61,7 @@ def add_intervals_container(nwb_file,csv_data_row) -> None:
             lick_threshold = np.append(lick_threshold, One_sweep["lick"]["threshold"] if One_sweep.get("lick", {}).get("threshold", None) is not None else np.nan)
             stim_type = np.append(stim_type, One_trial["type"] if One_trial["type"] != "n.a" else np.nan)
 
+    # Finalize data types
     trial_onsets = trial_onsets.astype(np.float64)
     trial_onsets_relative = trial_onsets_relative.astype(np.float64)
     whisker_stim = whisker_stim.astype(np.int64)
@@ -80,7 +80,7 @@ def add_intervals_container(nwb_file,csv_data_row) -> None:
     stim_type = stim_type.astype(str)
 
 
-    # --- Define new trial columns ---
+    # Define new trial columns
     new_columns = {
         'trial_time_relative': 'Relative time of the trial onset (s) relative to the corresponding sweep start time',
         'Sweep_ID': 'Unique identifier for each sweep',
@@ -107,12 +107,12 @@ def add_intervals_container(nwb_file,csv_data_row) -> None:
         "Session_Number": "Unique identifier for each session",
     }
 
-    # --- Add columns before inserting trials ---
+    # Add columns before inserting trials 
     for col, desc in new_columns.items():
         if (nwb_file.trials is None) or (col not in nwb_file.trials.colnames):
             nwb_file.add_trial_column(name=col, description=desc)
 
-    # --- Add trials ---
+    # Add trials
     for i in range(len(trial_onsets)):
         nwb_file.add_trial(
             start_time=float(trial_onsets[i]),

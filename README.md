@@ -43,7 +43,7 @@ NWB_converter_PB
 
 Follow the environment setup instructions provided in [LSENS-Lab-Immersion repository](https://github.com/loris-fab/LSENS-Lab-Immersion.git), and include the link to it.
 
----
+
 
 ## 🧩 How to use
 
@@ -52,21 +52,21 @@ Run the following command in the terminal, replacing:
 * `input_folder` with the directory containing the `.mat` file "mPFC_Preprocessed",
 * `output_folder` with the directory where you want the NWB files to be saved.
 
-`--mouses_name` lets you specify one or more mouse names to process, separated by spaces (e.g., `--mouses_name LB010 LB011`).
+`--choice_mouses` lets you specify one or more mouse names to process, separated by spaces (e.g., `--choice_mouses LB010 LB011`).
 
 ```bash
-python convert_data_to_nwb_PB.py input_folder output_folder --mouses_name LB010 LB011 (...)
+python convert_data_to_nwb_PB.py input_folder output_folder --choice_mouses LB010 LB011 (...)
 ```
 ### *Options:*
 
-* `--mouses_name` : One or more mouse/session names to convert (default: all sessions)
+* `--choice_mouses` : One or more mouse/session names to convert (default: all sessions)
 
 for exemple in window:
 ```bash
 python convert_to_nwb_for_PB.py \
 "//sv-nas1.rcp.epfl.ch/Petersen-Lab/analysis/Sylvain_Crochet/DATA_REPOSITORY/Banterle_mPFC_Vm_2019/mPFC_Preprocessed.mat" \
 "//sv-nas1.rcp.epfl.ch/Petersen-Lab/z_LSENS/Share/Loris_Fabbro/LB/NWB_files" \
---mouses_name LB010
+--choice_mouses LB010
 ```
 
 If everything runs correctly, you should see an output similar to this:
@@ -80,9 +80,9 @@ If everything runs correctly, you should see an output similar to this:
  60%|██████    | 3/5 [02:02<01:51, 55.61s/it]Loading sweep signal data (2/3) ...
  80%|████████  | 4/5 [02:04<00:34, 34.39s/it]Loading sweep signal data (3/3) ...
 100%|██████████| 5/5 [02:05<00:00, 25.19s/it]
-Loading sweep behavior data ...
-Creating a unified DataFrame : Adding Mouses Cells ...: 66it [00:00, 80.96it/s]                      
-Converting data to NWB format for mouse: ['LB010_S1_R1', 'LB010_S1_R3']
+Loading sweep behavior data ...                   
+Converting data to NWB format for mouse: 
+['LB010_S1_R1', 'LB010_S1_R3']
 Processing : 100%|██████████| 2/2 [00:09<00:00,  4.87s/it, LB010]
 **************************************************************************
 ```
@@ -93,6 +93,4 @@ Project developed as part of a student project focused on organizing and convert
 Main code by **@loris-fab**
 
 For any questions related to the code, please contact: [loris.fabbro@epfl.ch](mailto:loris.fabbro@epfl.ch)
-
-
 
