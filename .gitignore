@@ -1,10 +1,15 @@
 # Ignorer le dossier des données
 data/
+other/
 
 # Fichiers Python inutiles
 __pycache__/
 *.pyc
 LO_NWB_conversion_an.ipynb
+
+
+# Fichiers NWB
+*.nwb
 
 # Fichiers système
 .DS_Store
