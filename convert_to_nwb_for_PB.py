@@ -292,7 +292,6 @@ def convert_data_to_nwb_PB(input_folder, output_folder, choice_mouses = None):
             tqdm.write("Loading sweep behavior data ...")
             pbar.update(1)
 
-
     ##############################################################
     ################# Convert data to NWB format #################
     ##############################################################
@@ -339,16 +338,16 @@ def convert_data_to_nwb_PB(input_folder, output_folder, choice_mouses = None):
         """
         for one_cell in cell: # The loop finds the corresponding cell for the given cell_id
             if one_cell[0] in index_mouses_choices and cell_id == Cell_ID[one_cell[0]]:
+
+                # Extract metadata from subject_session_selection and from the data loaded
                 name = mouses_name[one_cell[0]]
                 sex = Mouse_Sex[one_cell[0]]
                 session_type = sessiontypes[one_cell[0]]
-                #behaviortype = " & ".join(np.unique(Sweep_type[one_cell]))
                 if session_type not in ["Trained", "D1", "Naive"]:
                     raise ValueError(f"Unknown session type: {session_type}. Expected 'Trained', 'D1', or 'Naive'.") 
                 behaviortype = "Whisker rewarded (WR+)" if (session_type == "Trained" or session_type == "D1") else "No Task"  
                 start_time_hhmmss = sweep_start_times[one_cell[0]].strftime("%H%M%S") if not pd.isnull(sweep_start_times[one_cell[0]]) else None
                 start_time = sweep_start_times[one_cell[0]] if not pd.isnull(sweep_start_times[one_cell[0]]) else None
-
                 row = subject_session_selection[subject_session_selection['Mouse Name'] == name]
                 date_str = str(row['Birth date'].iloc[0]).strip() 
                 birth_date = date_str.replace("/", ".")
@@ -365,52 +364,51 @@ def convert_data_to_nwb_PB(input_folder, output_folder, choice_mouses = None):
                 end_date = str(row['End date'].iloc[0]).strip()
                 end_date = end_date.replace("/", ".")
                 age = (datetime.strptime(start_date, "%d.%m.%Y") - datetime.strptime(birth_date, "%d.%m.%Y")).days
-
-
                 session_date = start_date.replace(".", "")[4:] + end_date.replace(".", "")[2:4] + end_date.replace(".", "")[0:2]
 
+                # Extract sweep information
                 sweeps = []
                 for one_sweep in one_cell:
                     t0 = sweep_start_times[one_sweep] if not pd.isnull(sweep_start_times[one_sweep]) else None
 
-                    vm      = vm_list[one_sweep]   #if one_sweep < len(vm_list) else np.array([])
-                    cur     = cur_list[one_sweep]  #if one_sweep < len(cur_list) else np.array([])
-                    wa      = wa_list[one_sweep]   #if one_sweep < len(wa_list) else np.array([])
-                    ap_rel  = ap_list[one_sweep]   #if one_sweep < len(ap_list) else np.array([])
-                    stim_on = stim_on_list[one_sweep] #if one_sweep < len(stim_on_list) else np.array([])
-                    stim_amp= stim_amp_list[one_sweep] #if one_sweep < len(stim_amp_list) else np.array([])
-                    stim_dur= stim_dur_list[one_sweep] #if one_sweep < len(stim_dur_list) else np.array([])
-                    reward_rel = reward_list[one_sweep] #if one_sweep < len(reward_list) else np.array([])
-                    behav   = behav_list[one_sweep].T #if one_sweep < len(behav_list) else np.empty((0,5))
-                    stim_type = stim_type_list[one_sweep] #if one_sweep < len(stim_type_list) else None
+                    vm      = vm_list[one_sweep]   
+                    cur     = cur_list[one_sweep]  
+                    wa      = wa_list[one_sweep]   
+                    ap_rel  = ap_list[one_sweep]   
+                    stim_on = stim_on_list[one_sweep] 
+                    stim_amp= stim_amp_list[one_sweep] 
+                    stim_dur= stim_dur_list[one_sweep] 
+                    reward_rel = reward_list[one_sweep] 
+                    behav   = behav_list[one_sweep].T 
+                    stim_type = stim_type_list[one_sweep] 
 
-                    # durations
+                    ## durations
                     dur_vm = float(vm.size / sr_vm_cm) if sr_vm_cm and vm.size>0 else None
-                    #dur_wa = float(wa.size / sr_wa)    if sr_wa and wa.size>0 else None
 
-                    # absolute times
+
+                    ## absolute times
                     ap_abs = safe_abs_times(safe_list(ap_rel), t0) if t0 is not None else None
                     stim_on_abs  = safe_abs_times(safe_list(stim_on), t0)  if t0 is not None else None
                     reward_abs   = safe_abs_times(safe_list(reward_rel), t0) if t0 is not None else None
 
-                    # Trials -> liste de dicts (col1=ts rel, col2=stim?, col3=lick, col4=reward, col5=response)
+                    ## Trials -> liste de dicts (col1=ts rel, col2=stim?, col3=lick, col4=reward, col5=response)
                     trials = []
-                    duration_trial = 2.0
+
                     if behav.size > 0:
+                        # Remove duplicate rows in behav (keep first occurrence)
+                        _, idx = np.unique(behav, axis=0, return_index=True)
+                        behav = behav[np.sort(idx)]
+
                         ts_rel   = behav[:,0].astype(float)
                         has_stim = behav[:,1].astype(bool)
                         lick     = behav[:,2].astype(bool)
                         reward_b = behav[:,3].astype(bool)
                         response = behav[:,4].astype(int)
-                        
                         ts_abs = [t0 + timedelta(seconds=float(x)) for x in ts_rel] if t0 is not None else [None]*len(ts_rel)
-
                         stim_type = [stim_type] if isinstance(stim_type, str) else ([] if stim_type is None else safe_list(stim_type))
 
                         if len(stim_type) != 0: # if not Free Whisking
                             stim_on = safe_list(stim_on)
-                            #print(stim_on)
-                            #print(has_stim[has_stim > 0])
                             stim_on_abs = stim_on_abs
                             stim_amp = safe_list(stim_amp)
                             stim_dur = safe_list(stim_dur)
@@ -468,7 +466,6 @@ def convert_data_to_nwb_PB(input_folder, output_folder, choice_mouses = None):
                         "Sweep Start Time": ((t0) - start_time).total_seconds(),
                         "Sweep Stop Time": ((t0 + timedelta(seconds=float(dur_vm))) - start_time).total_seconds(),
                         "Sweep Type": str(Sweep_type[one_sweep]),
-                        #'behav': behav,
 
                         # Signaux
                         "membrane_potential": {
@@ -505,7 +502,7 @@ def convert_data_to_nwb_PB(input_folder, output_folder, choice_mouses = None):
                             "relative_s": safe_list(reward_rel),
                             "absolute": [(t - start_time).total_seconds() if t is not None else None for t in reward_abs] if reward_abs else []
                         },
-
+                        # lick
                         "lick": {
                             "sampling_rate_Hz": 20000, 
                             "data": safe_list(lick_list[one_sweep]) if lick_list[one_sweep].size > 0 else [],
@@ -533,8 +530,6 @@ def convert_data_to_nwb_PB(input_folder, output_folder, choice_mouses = None):
                     "mutations": "WT",
                     "Birth date": birth_date,
                     "licence": "VD-1628.6",
-                    #"DG": "",
-                    #"ExpEnd": "",
                     "Created on": Created_on, 
                     "Session": Cell_ID[one_cell[0]] + "_" + session_date,
                     "counter": counter,

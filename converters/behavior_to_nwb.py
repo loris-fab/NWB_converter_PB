@@ -15,12 +15,11 @@ def add_behavior_container(nwb_file,csv_data_row):
 
    Args:
        nwb_file (pynwb.file.NWBFile): Target NWB file to which behavior data is added.
-       csv_data_row (pandas.Series | Mapping): Row containing behavior data fields.
+       csv_data_row (pandas.Series): Row containing behavior data fields.
        
     return: None
     """
-    # --- Extract behavior data ---
-
+    # Extract behavior data 
     sweep_data = csv_data_row["sweeps"]
     trial_onsets = np.array([])
     whisker_stim = np.array([])
@@ -35,8 +34,6 @@ def add_behavior_container(nwb_file,csv_data_row):
     whisker_angle = list()
     PiezoLickSignal = list()
     
-
-
     for One_sweep in sweep_data:
         Sweep_Start_time = np.append(Sweep_Start_time, One_sweep["Sweep Start Time"])
         Sweep_Stop_time = np.append(Sweep_Stop_time, One_sweep["Sweep Stop Time"])
@@ -51,6 +48,7 @@ def add_behavior_container(nwb_file,csv_data_row):
             reward_onset = np.append(reward_onset, One_trial["reward_time"] if One_trial["reward"] else np.nan)
             lick_flag = np.append(lick_flag, 1 if One_trial["lick"] else 0)
 
+    # Finalize data types
     trial_onsets = trial_onsets.astype(np.float64)
     whisker_stim = whisker_stim.astype(np.int64)
     whisker_stim_amplitude = whisker_stim_amplitude.astype(np.int64)
@@ -62,14 +60,14 @@ def add_behavior_container(nwb_file,csv_data_row):
     Sweep_Stop_time = Sweep_Stop_time.astype(np.float64)
 
 
-    # 1. Created behavior processing module
+    # Created behavior processing module
     bhv_module = nwb_file.create_processing_module('behavior', 'contains behavioral processed data')
 
     ###############################################
-    ### Add behavioral events                    ###
+    ### Add behavioral events                   ###
     ###############################################
 
-
+    # Create a BehavioralEvents container
     behavior_events = BehavioralEvents(name='BehavioralEvents')
     bhv_module.add_data_interface(behavior_events)
 
@@ -215,13 +213,15 @@ def add_behavior_container(nwb_file,csv_data_row):
     #########################################################
     ### Add continuous traces  ###
     #########################################################
+    
+    # Create BehavioralTimeSeries container
     bts = bhv_module.data_interfaces.get('BehavioralTimeSeries')
     if bts is None:
         bts = BehavioralTimeSeries(name='BehavioralTimeSeries')
         bhv_module.add(bts)
 
 
-
+    # Add continuous traces (whisker_angle, PiezoLickSignal)
     for index, i in enumerate([whisker_angle, PiezoLickSignal]):
         all_data = []
         all_timestamps = []
