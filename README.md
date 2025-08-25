@@ -1,5 +1,5 @@
 
-# 🧪 NWB Conversion Pipeline for PB Sessions
+# 🧪 NWB Conversion Pipeline for LB Sessions
 
 This project provides a conversion pipeline for **single-neuron membrane potential recordings** from unpublished experiments into the standard **Neurodata Without Borders (NWB)** format.
 
