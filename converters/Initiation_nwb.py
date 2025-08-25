@@ -11,7 +11,7 @@ import os
 # Function that creates the nwb file object using all metadata
 #############################################################################
 
-def create_nwb_file_an(config_file):
+def create_nwb_file(config_file):
     """
     Create an NWBFile from a YAML configuration.
 

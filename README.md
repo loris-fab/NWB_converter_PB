@@ -24,7 +24,7 @@ Recordings were obtained in the medial prefrontal cortex using **whole-cell patc
 ## 📁 Project Structure
 
 ```
-NWB_converter_PB
+NWB_converter_LB
 │
 ├── converters/
 │   ├── acquisition_and_unit_to_nwb.py
@@ -35,7 +35,7 @@ NWB_converter_PB
 │   └── nwb_saving.py
 ├── Subject_Session_Selection.csv
 ├── README.md
-├── convert_data_to_nwb_PB.py  ← Main conversion script
+├── convert_data_to_nwb_LB.py  ← Main conversion script
 ```
 
 
@@ -63,7 +63,7 @@ python convert_data_to_nwb_PB.py input_folder output_folder --choice_mouses LB01
 
 for exemple in window:
 ```bash
-python convert_to_nwb_for_PB.py \
+python convert_to_nwb_for_LB.py \
 "//sv-nas1.rcp.epfl.ch/Petersen-Lab/analysis/Sylvain_Crochet/DATA_REPOSITORY/Banterle_mPFC_Vm_2019/mPFC_Preprocessed.mat" \
 "//sv-nas1.rcp.epfl.ch/Petersen-Lab/z_LSENS/Share/Loris_Fabbro/LB/NWB_files" \
 --choice_mouses LB010

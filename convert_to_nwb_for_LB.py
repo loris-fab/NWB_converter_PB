@@ -29,7 +29,7 @@ import os
 # Functions for converting data to NWB format for AN sessions
 #############################################################
 
-def convert_data_to_nwb_PB(input_folder, output_folder, choice_mouses = None):
+def convert_data_to_nwb_LB(input_folder, output_folder, choice_mouses = None):
     """
     Convert preprocessed .mat ("mPFC_Preprocessed.mat" in <input_folder>) data into NWB files.
 
@@ -563,7 +563,7 @@ def convert_data_to_nwb_PB(input_folder, output_folder, choice_mouses = None):
             )
 
             # Create the initial NWB file 
-            nwb_file = converters.Initiation_nwb.create_nwb_file_an(config_file=output_path)
+            nwb_file = converters.Initiation_nwb.create_nwb_file(config_file=output_path)
 
             # ⏸️ Add interval data (like trials, epochs)
             converters.intervals_to_nwb.add_intervals_container(
@@ -645,7 +645,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    convert_data_to_nwb_PB(
+    convert_data_to_nwb_LB(
         input_folder=args.input_folder,
         output_folder=args.output_folder,
         choice_mouses=args.choice_mouses
