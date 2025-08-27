@@ -47,21 +47,23 @@ Follow the environment setup instructions provided in [LSENS-Lab-Immersion repos
 
 ## 🧩 How to use
 
-Run the following command in the terminal, replacing:
+Please find below the key information
 
-* `input_folder` with the directory containing the `.mat` file "mPFC_Preprocessed",
-* `output_folder` with the directory where you want the NWB files to be saved.
+* `input_folder` → directory containing the `.mat` file "mPFC_Preprocessed",
+* `output_folder` → directory where you want the NWB files to be saved.
+* `choice_mouses` → lets you specify one or more mouse names to process.
 
-`--choice_mouses` lets you specify one or more mouse names to process, separated by spaces (e.g., `--choice_mouses LB010 LB011`).
+### Commande in the terminal
+Run the following command in the terminal, replacing the arguments :
 
 ```bash
 python convert_data_to_nwb_PB.py input_folder output_folder --choice_mouses LB010 LB011 (...)
 ```
-### *Options:*
+*Options:*
 
-* `--choice_mouses` : One or more mouse/session names to convert (default: all sessions)
+* `--choice_mouses` : One or more mouse/session names to convert (default: all sessions), separated by spaces `(e.g., --choice_mouses LB010 LB011).`
 
-for exemple in window:
+*for exemple in window:*
 ```bash
 python convert_to_nwb_for_LB.py \
 "//sv-nas1.rcp.epfl.ch/Petersen-Lab/analysis/Sylvain_Crochet/DATA_REPOSITORY/Banterle_mPFC_Vm_2019/mPFC_Preprocessed.mat" \
@@ -69,22 +71,38 @@ python convert_to_nwb_for_LB.py \
 --choice_mouses LB010
 ```
 
+
+### Run inside a Jupyter Notebook
+
+You can also call the conversion function directly inside a Jupyter Notebook without using the command line.
+Simply import `convert_data_to_nwb_LB` from your script and call it with the correct arguments:
+
+*for exemple in window:*
+```python
+from convert_to_nwb_for_LB import convert_data_to_nwb_LB
+
+convert_data_to_nwb_LB(
+    input_folder="//sv-nas1.rcp.epfl.ch/Petersen-Lab/analysis/Sylvain_Crochet/DATA_REPOSITORY/Banterle_mPFC_Vm_2019/mPFC_Preprocessed.mat",
+    output_folder="//sv-nas1.rcp.epfl.ch/Petersen-Lab/z_LSENS/Share/Loris_Fabbro/LB/NWB_files",
+    choice_mouses=["LB010"]  # you can pass one or multiple mouse names
+)
+```
+
+*Options:*
+* `choice_mouses` : One or more mouse/session names to convert (default: all sessions). Use a Python list for multiple mice (e.g. `["LB010", "LB011"]`).
+
+
+### Outcome
 If everything runs correctly, you should see an output similar to this:
 
 ```bash
 **************************************************************************
 -_-_-_-_-_-_-_-_-_-_-_-_-_-_- NWB conversion _-_-_-_-_-_-_-_-_-_-_-_-_-_-_
-📥 Collecting data from .mat file: \\sv-nas1.rcp.epfl.ch\Petersen-Lab\analysis\Sylvain_Crochet\DATA_REPOSITORY\Banterle_mPFC_Vm_2019\mPFC_Preprocessed.mat
- 20%|██        | 1/5 [00:01<00:06,  1.63s/it]Loading mouse metadata ...
- 40%|████      | 2/5 [00:02<00:03,  1.32s/it]Loading sweep signal data (1/3) ...
- 60%|██████    | 3/5 [02:02<01:51, 55.61s/it]Loading sweep signal data (2/3) ...
- 80%|████████  | 4/5 [02:04<00:34, 34.39s/it]Loading sweep signal data (3/3) ...
-100%|██████████| 5/5 [02:05<00:00, 25.19s/it]
-Loading sweep behavior data ...                   
-Converting data to NWB format for mouse: 
+📥 Collecting data from .mat file:  /Users/lorisfabbro/Documents/MATLAB/PB/mPFC_Preprocessed.mat
+Loading finished.: 100%|██████████| 5/5 [01:43<00:00, 20.73s/it]                  
+Converting data to NWB format for mouse:
 ['LB010_S1_R1', 'LB010_S1_R3']
-Processing : 100%|██████████| 2/2 [00:09<00:00,  4.87s/it, LB010]
-**************************************************************************
+Conversion to NWB is finished: 100%|██████████| 2/2 [00:03<00:00,  1.77s/it]**************************************************************************
 ```
 
 ## ✍️ Author

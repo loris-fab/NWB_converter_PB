@@ -210,8 +210,7 @@ def convert_data_to_nwb_LB(input_folder, output_folder, choice_mouses = None):
             Sweep_type  = read_cell_strings(f, 'Data_Full/Sweep_Type')
             Cell_Depth = np.array(f['Data_Full/Cell_Depth'][()]).squeeze()
 
-            time.sleep(1)
-            tqdm.write("Loading mouse metadata ...")
+            pbar.set_description("Loading mouse metadata ...")
             pbar.update(1)
 
             # --- SWEEPS ----
@@ -228,8 +227,7 @@ def convert_data_to_nwb_LB(input_folder, output_folder, choice_mouses = None):
             cur_list  = read_cell_numeric_vectors(f, cm_refs)
             wa_list   = read_cell_numeric_vectors(f, wa_refs)
 
-            time.sleep(1)
-            tqdm.write("Loading sweep signal data (1/3) ...")
+            pbar.set_description("Loading sweep signal data (1/3) ...")
             pbar.update(1)
 
             # Lick
@@ -244,8 +242,7 @@ def convert_data_to_nwb_LB(input_folder, output_folder, choice_mouses = None):
             ap_refs   = f['Data_Full/Sweep_AP_Times'][()]
             ap_list   = read_cell_numeric_vectors(f, ap_refs)
 
-            time.sleep(1)
-            tqdm.write("Loading sweep signal data (2/3) ...")
+            pbar.set_description("Loading sweep signal data (2/3) ...")
             pbar.update(1)
 
             # Stim
@@ -264,8 +261,7 @@ def convert_data_to_nwb_LB(input_folder, output_folder, choice_mouses = None):
             reward_list = read_cell_numeric_vectors(f, reward_refs)
 
             # Step 4: Sweep data loaded
-            time.sleep(1)
-            tqdm.write("Loading sweep signal data (3/3) ...")
+            pbar.set_description("Loading sweep signal data (3/3) ...")
             pbar.update(1)
 
             # Behavior matrix (n_trials x 5)
@@ -288,9 +284,9 @@ def convert_data_to_nwb_LB(input_folder, output_folder, choice_mouses = None):
             sr_wa    = 200
 
             # Step 5: Sweep data loaded
-            time.sleep(1)
-            tqdm.write("Loading sweep behavior data ...")
+            pbar.set_description("Loading sweep behavior data ...")
             pbar.update(1)
+        pbar.set_description("Loading finished.")
 
     ##############################################################
     ################# Convert data to NWB format #################
@@ -549,11 +545,11 @@ def convert_data_to_nwb_LB(input_folder, output_folder, choice_mouses = None):
                 return row
     
     # Loop through each unique cell ID (each representing a dataset)          
-    bar = tqdm(total=len(choice_cells), desc="Processing ")
+    bar = tqdm(total=len(choice_cells), desc="Conversion to NWB: ")
     for cell_id in choice_cells:
         try:
             csv_data_row = to_data_frame(cell_id)
-            bar.set_postfix_str(str(csv_data_row["Mouse Name"]))
+            bar.set_description(f"Conversion to NWB: 🔁 {str(cell_id)}")
             bar.update(1)
 
             # Create config file for the NWB conversion
@@ -618,13 +614,14 @@ def convert_data_to_nwb_LB(input_folder, output_folder, choice_mouses = None):
             failures.append((cell_id, str(e)))
             continue
 
+    bar.set_description(f"Conversion to NWB is finished")
+    bar.close()
+
     # Show failed conversions
     if len(failures) > 0:
         print(f"⚠️ Conversion completed except for:")
         for i, (id, error) in enumerate(failures):
             print(f"    - {id}: {error}")
-
-    bar.close()
 
     # Clean up any leftover config files (.yaml)
     for f in Path(output_folder).glob("*.yaml"):  
