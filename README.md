@@ -46,8 +46,9 @@ Follow the environment setup instructions provided in [LSENS-Lab-Immersion repos
 
 
 ## 🧩 How to use
+Whether you run the pipeline from the **terminal** or from **Jupyter**, it is essential to ensure that you are using the correct environment. If you are working in *Visual Studio Code*, follow the <Verification> steps in the [LSENS-Lab-Immersion repository](https://github.com/loris-fab/LSENS-Lab-Immersion.git) to confirm that you are using the right environment either in the terminal when executing the pipeline there, or in Jupyter when running it from notebooks. Once confirmed, you can proceed with the instructions further down to run the pipeline.
 
-Please find below the key information
+Now, please find below the key information
 
 * `input_folder` → directory containing the `.mat` file "mPFC_Preprocessed",
 * `output_folder` → directory where you want the NWB files to be saved.
@@ -79,13 +80,13 @@ Simply import `convert_data_to_nwb_LB` from your script and call it with the cor
 
 *for exemple in window:*
 ```python
-from convert_to_nwb_for_LB import convert_data_to_nwb_LB
+import importlib
+import convert_to_nwb_for_LB
+importlib.reload(convert_to_nwb_for_LB)
 
-convert_data_to_nwb_LB(
-    input_folder="//sv-nas1.rcp.epfl.ch/Petersen-Lab/analysis/Sylvain_Crochet/DATA_REPOSITORY/Banterle_mPFC_Vm_2019/mPFC_Preprocessed.mat",
-    output_folder="//sv-nas1.rcp.epfl.ch/Petersen-Lab/z_LSENS/Share/Loris_Fabbro/LB/NWB_files",
-    choice_mouses=["LB010"]  # you can pass one or multiple mouse names
-)
+output_folder_serveur = "//sv-nas1.rcp.epfl.ch/Petersen-Lab/z_LSENS/Share/Loris_Fabbro/LB/NWB_files"
+input_folder_server = "//sv-nas1.rcp.epfl.ch/Petersen-Lab/analysis/Sylvain_Crochet/DATA_REPOSITORY/Banterle_mPFC_Vm_2019/mPFC_Preprocessed.mat"
+nwb_path = convert_to_nwb_for_LB.convert_data_to_nwb_LB(input_folder=input_folder_server, output_folder=output_folder_serveur, choice_mouses = ["LB010"])
 ```
 
 *Options:*
