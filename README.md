@@ -106,6 +106,8 @@ Converting data to NWB format for mouse:
 Conversion to NWB is finished: 100%|██████████| 2/2 [00:03<00:00,  1.77s/it]**************************************************************************
 ```
 
+For each session, an `.nwb` file named with the session identifier is written under `WDT/` or `No Task/` inside the chosen output directory. The script prints a summary and performs NWB validation before final save.
+
 ## ✍️ Author
 
 Project developed as part of a student project focused on organizing and converting unpublished neuroscience data into the NWB standard.
